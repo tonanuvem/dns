@@ -20,6 +20,7 @@ fi
 
 # Tornar o script Python executável
 chmod +x configurar_aluno.py
+chmod +x criar.sh
 
 # Executar o script Python
 python3 configurar_aluno.py "$1" "$2" 
