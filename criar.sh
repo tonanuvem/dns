@@ -24,14 +24,6 @@ check_status() {
 # 1. Verificar se o config.sh foi executado
 print_message "$YELLOW" "\n1. Verificando configuração inicial..."
 
-# Verificar se as variáveis de ambiente necessárias estão definidas
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-    print_message "$RED" "❌ Variáveis de ambiente AWS não configuradas."
-    print_message "$YELLOW" "Execute o script config.sh primeiro:"
-    print_message "$YELLOW" "./config.sh"
-    exit 1
-fi
-
 # Verificar se o arquivo terraform.tfvars existe
 if [ ! -f "terraform/terraform.tfvars" ]; then
     print_message "$RED" "❌ Arquivo terraform.tfvars não encontrado."
