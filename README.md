@@ -1,98 +1,110 @@
 # Gerenciador DNS
 
-Este projeto permite que alunos criem aliases DNS para suas máquinas usando AWS Route 53 e DynamoDB.
+Sistema que permite aos alunos criarem aliases DNS para suas máquinas usando AWS Route 53 e DynamoDB.
 
 ## Requisitos
 
-- Node.js 16+
-- npm 7+
-- Python 3.8+
-- AWS CLI configurado
-- Terraform 1.0+
+- Node.js 18.x ou superior
+- npm 9.x ou superior
+- Python 3.8 ou superior
+- AWS CLI 2.x
+- Terraform 1.x
 
 ## Configuração Inicial
 
 1. Clone o repositório:
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/seu-usuario/dns.git
 cd dns
 ```
 
 2. Execute o script de configuração:
 ```bash
-./config.sh
+./config.sh <nome_aluno> <senha>
 ```
 
 Este script irá:
-- Configurar as variáveis de ambiente AWS
-- Criar o arquivo ZIP da função Lambda
-- Configurar o arquivo terraform.tfvars
+- Configurar o ambiente Python
+- Verificar as zonas DNS disponíveis
+- Configurar as credenciais AWS
+- Criar o arquivo de configuração do Terraform
 
 ## Desenvolvimento
 
-### Frontend
-
-O frontend é uma aplicação React Admin que permite gerenciar os registros DNS.
-
-Para desenvolvimento:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
 ### Backend
 
-O backend é uma função Lambda em Python que gerencia os registros DNS no Route 53.
+O backend é uma função Lambda em Python que gerencia os registros DNS.
 
-Para desenvolvimento:
+Para criar o build do backend:
 ```bash
-cd lambda
-python -m venv venv
-source venv/bin/activate  # No Windows: venv\Scripts\activate
-pip install -r requirements.txt
+./criar.sh
 ```
 
-## Deploy
+Este script irá:
+- Criar o arquivo ZIP da função Lambda
+- Criar o build do frontend
+- Verificar se todos os arquivos necessários foram criados
 
-Antes de executar o deploy, é necessário preparar os arquivos do frontend e do backend:
+### Frontend
 
-1. Criar o build do frontend:
-```bash
-./scripts/create_frontend.sh
-```
+O frontend é uma aplicação React que permite aos alunos gerenciar seus aliases DNS.
 
-2. Criar o arquivo ZIP do backend:
-```bash
-./scripts/create_backend.sh
-```
-
-3. Executar o deploy:
-```bash
-./scripts/deploy.sh
-```
-
-## Atualização do Frontend
-
-Para atualizar apenas o frontend após fazer alterações:
-
-1. Criar o build do frontend:
-```bash
-./scripts/create_frontend.sh
-```
-
-2. Atualizar os arquivos no S3:
+Para atualizar o frontend após alterações:
 ```bash
 ./scripts/update_frontend.sh
 ```
 
+## Deploy
+
+Para fazer o deploy da infraestrutura:
+```bash
+./scripts/deploy.sh
+```
+
+Este script irá:
+- Verificar se todos os arquivos necessários existem
+- Inicializar o Terraform
+- Criar um plano de execução
+- Aplicar as mudanças
+
 ## Estrutura do Projeto
 
-- `frontend/` - Aplicação React Admin
-- `lambda/` - Função Lambda em Python
-- `terraform/` - Configuração do Terraform
-- `scripts/` - Scripts de automação
-  - `create_frontend.sh` - Cria o build do frontend
-  - `create_backend.sh` - Cria o arquivo ZIP da função Lambda
-  - `deploy.sh` - Executa o deploy do Terraform
-  - `update_frontend.sh` - Atualiza o frontend no S3 
+```
+.
+├── config.sh              # Script de configuração inicial
+├── criar.sh              # Script para criar builds do backend e frontend
+├── lambda/               # Código da função Lambda
+├── frontend/            # Código do frontend
+├── scripts/             # Scripts auxiliares
+│   ├── configurar_aluno.py
+│   ├── create_frontend.sh
+│   ├── update_frontend.sh
+│   └── deploy.sh
+└── terraform/           # Código Terraform
+    ├── main.tf
+    ├── variables.tf
+    ├── outputs.tf
+    └── modules/
+        ├── lambda_api/
+        ├── api_gateway/
+        ├── frontend/
+        └── dns/
+```
+
+## Troubleshooting
+
+### Erro ao executar config.sh
+- Verifique se Python 3 está instalado
+- Verifique se as credenciais AWS estão configuradas
+- Verifique se a zona DNS do aluno existe
+
+### Erro ao executar criar.sh
+- Verifique se o diretório lambda existe
+- Verifique se o arquivo gerenciador_dns.py existe
+- Verifique se o Node.js e npm estão instalados
+
+### Erro ao executar deploy.sh
+- Verifique se o arquivo ZIP da função Lambda existe
+- Verifique se o build do frontend existe
+- Verifique se as credenciais AWS são válidas
+- Verifique se o arquivo terraform.tfvars está configurado corretamente 
