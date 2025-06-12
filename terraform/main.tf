@@ -31,7 +31,7 @@ module "api_gateway" {
   source = "./modules/api_gateway"
 
   nome_aluno = var.nome_aluno
-  lambda_function_arn = module.lambda.function_arn
+  lambda_function_arn = module.lambda.invoke_arn
   lambda_function_name = module.lambda.function_name
   zone_id = data.aws_route53_zone.selecionada.zone_id
   tags = var.tags
