@@ -52,7 +52,7 @@ check_status "Build do frontend criado com sucesso" "Erro ao criar build do fron
 # Copiar arquivos para o diretório do Terraform
 print_message "Copiando arquivos para o diretório do Terraform..." "$YELLOW"
 rm -rf "$BASE_DIR/terraform/frontend_build"
-cp -r "$BASE_DIR/frontend/dist" "$BASE_DIR/terraform/frontend_build"
+cp -r "$BASE_DIR/frontend/build" "$BASE_DIR/terraform/frontend_build"
 check_status "Arquivos copiados com sucesso" "Erro ao copiar arquivos"
 
 print_message "Frontend criado com sucesso!" "$GREEN" 
