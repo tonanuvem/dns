@@ -60,6 +60,11 @@ zip -r "$BASE_DIR/lambda_zip/gerenciador_dns.zip" .
 cd "$BASE_DIR"
 check_status "Criação do arquivo ZIP do Lambda"
 
+# Copiar o arquivo ZIP para o diretório do módulo lambda
+print_message "$YELLOW" "Copiando arquivo ZIP para o módulo lambda..."
+cp "$BASE_DIR/lambda_zip/gerenciador_dns.zip" "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip"
+check_status "Cópia do arquivo ZIP"
+
 # 3. Executar deploy
 print_message "$YELLOW" "\n3. Executando deploy..."
 

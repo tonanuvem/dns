@@ -19,7 +19,7 @@ resource "aws_dynamodb_table" "registros_dns" {
 
 # Função Lambda
 resource "aws_lambda_function" "gerenciador_dns" {
-  filename         = data.archive_file.lambda_zip.output_path
+  filename         = "${path.module}/lambda_function.zip"
   function_name    = "gerenciador-dns"
   role            = aws_iam_role.lambda_role.arn
   handler         = "lambda_function.lambda_handler"
