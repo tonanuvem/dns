@@ -29,10 +29,10 @@ def obter_zone_id(nome_aluno):
     try:
         # Executar script para obter zone_id
         resultado = subprocess.run(
-            ['python3', 'dns_list_zonas.py', f'{nome_aluno}.lab.tonanuvem.com'],
+            ['python3', str(PROJECT_ROOT / 'scripts' / 'dns_list_zonas.py'), f'{nome_aluno}.lab.tonanuvem.com'],
             capture_output=True,
             text=True,
-            cwd=PROJECT_ROOT / 'scripts'
+            cwd=PROJECT_ROOT
         )
         
         if resultado.returncode == 0:

@@ -18,25 +18,37 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-# Criar e ativar ambiente virtual
+# Criar ambiente virtual se não existir
+if [ ! -d "venv" ]; then
+    echo "Criando ambiente virtual..."
+    python3 -m venv venv
+fi
+
+# Ativar ambiente virtual
 echo "Ativando ambiente virtual..."
-python3 -m venv venv
 source venv/bin/activate
 
 # Atualizar pip
+echo "Atualizando pip..."
 pip install --upgrade pip
 
 # Instalar dependências
+echo "Instalando dependências..."
 if [ -f "requirements.txt" ]; then
     pip install -r requirements.txt
 else
-    echo "Arquivo requirements.txt não encontrado"
+    echo "Erro: Arquivo requirements.txt não encontrado"
     exit 1
 fi
 
 # Tornar os scripts executáveis
+echo "Configurando permissões dos scripts..."
 chmod +x scripts/configurar_aluno.py
 chmod +x scripts/dns_list_zonas.py
 
 # Executar o script Python
+echo "Executando configuração..."
 python3 scripts/configurar_aluno.py "$1" "$2"
+
+# Desativar ambiente virtual
+deactivate
