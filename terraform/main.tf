@@ -18,31 +18,32 @@ data "aws_route53_zone" "selecionada" {
 }
 
 # Módulo para criar a função Lambda
-module "lambda" {
+module "lambda_api" {
   source = "./modules/lambda_api"
 
   nome_dominio = var.nome_dominio
   id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
   senha_compartilhada = var.senha_compartilhada
+  tags = var.tags
 }
 
 # Módulo para criar a API Gateway
 module "api_gateway" {
   source = "./modules/api_gateway"
 
-  nome_aluno = var.nome_aluno
-  lambda_function_arn = module.lambda.invoke_arn
-  lambda_function_name = module.lambda.function_name
-  zone_id = data.aws_route53_zone.selecionada.zone_id
-  tags = var.tags
+  lambda_invoke_arn = module.lambda_api.lambda_function_invoke_arn
+  nome_aluno        = var.nome_aluno
+  nome_dominio      = var.nome_dominio
+  tags             = var.tags
 }
 
 # Módulo para criar o frontend
 module "frontend" {
   source = "./modules/frontend"
 
+  nome_aluno   = var.nome_aluno
   nome_dominio = var.nome_dominio
-  id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
+  tags         = var.tags
 }
 
 # Módulo para criar os registros DNS
@@ -224,8 +225,18 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 # Outputs
 output "api_endpoint" {
-  value = "${aws_apigatewayv2_stage.stage.invoke_url}/registros"
-  description = "Endpoint da API para gerenciamento de DNS"
+  description = "Endpoint da API Gateway"
+  value       = module.api_gateway.api_endpoint
+}
+
+output "frontend_url" {
+  description = "URL do frontend"
+  value       = module.frontend.frontend_url
+}
+
+output "dynamodb_table_name" {
+  description = "Nome da tabela DynamoDB"
+  value       = module.lambda_api.dynamodb_table_name
 }
 
 output "nameservers" {
@@ -241,4 +252,22 @@ output "zona_id" {
 output "dynamodb_table" {
   value = aws_dynamodb_table.registros_dns.name
   description = "Nome da tabela DynamoDB"
+}
+
+# Variáveis
+variable "nome_aluno" {
+  description = "Nome do aluno para prefixo dos recursos"
+  type        = string
+}
+
+variable "nome_dominio" {
+  description = "Nome do domínio base para os recursos"
+  type        = string
+  default     = "dns.lab"
+}
+
+variable "tags" {
+  description = "Tags padrão para todos os recursos"
+  type        = map(string)
+  default     = {}
 } 

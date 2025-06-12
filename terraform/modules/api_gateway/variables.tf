@@ -1,6 +1,17 @@
-variable "nome_aluno" {
-  description = "Nome do aluno para prefixar os recursos"
+variable "lambda_invoke_arn" {
+  description = "ARN da função Lambda para invocação"
   type        = string
+}
+
+variable "nome_aluno" {
+  description = "Nome do aluno para prefixo dos recursos"
+  type        = string
+}
+
+variable "nome_dominio" {
+  description = "Nome do domínio base para os recursos"
+  type        = string
+  default     = "dns.lab"
 }
 
 variable "lambda_function_arn" {
@@ -19,7 +30,7 @@ variable "zone_id" {
 }
 
 variable "tags" {
-  description = "Tags para os recursos"
+  description = "Tags padrão para todos os recursos"
   type        = map(string)
   default     = {}
 } 
