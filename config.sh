@@ -50,5 +50,10 @@ chmod +x scripts/dns_list_zonas.py
 echo "Executando configuração..."
 python3 scripts/configurar_aluno.py "$1" "$2"
 
+# Listar zonas DNS disponíveis
+echo -e "\nZonas DNS disponíveis:"
+echo "======================"
+python3 scripts/dns_list_zonas.py
+
 # Desativar ambiente virtual
 deactivate
