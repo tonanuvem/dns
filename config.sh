@@ -14,6 +14,8 @@ cd scripts || { echo "Erro: pasta 'scripts' não encontrada"; exit 1; }
 
 # Torna o script configurar.sh executável
 chmod +x configurar.sh
+chmod +x criar.sh
+chmod +x dns_listar_zonas.sh
 
 # Executa o script de configuração passando os argumentos
 ./configurar.sh "$NOME_ALUNO" "$SENHA"

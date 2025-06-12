@@ -39,6 +39,19 @@ else
     ZONA_ID=$(echo "$ZONAS_JSON" | jq -r ".HostedZones[$ESCOLHA].Id" | sed 's|/hostedzone/||')
 fi
 
+# Atualizar o arquivo terraform.tfvars com o ID da zona
+TF_VARS_FILE="terraform/terraform.tfvars"
+
+# Verificar se o arquivo existe
+if [ ! -f "$TF_VARS_FILE" ]; then
+    echo "❌ Arquivo $TF_VARS_FILE não encontrado"
+    exit 1
+fi
+
+# Atualizar o ID da zona no arquivo
+sed -i "s/zone_id = \".*\"/zone_id = \"$ZONA_ID\"/" "$TF_VARS_FILE"
+echo "✅ ID da zona atualizado no arquivo $TF_VARS_FILE"
+
 echo ""
 echo "📄 Detalhes da zona $ZONA_ID:"
 aws route53 get-hosted-zone --id "$ZONA_ID"
