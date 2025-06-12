@@ -15,7 +15,7 @@ Este projeto permite que alunos criem aliases DNS para suas máquinas usando AWS
 1. Clone o repositório:
 ```bash
 git clone <url-do-repositorio>
-cd dns-manager
+cd dns
 ```
 
 2. Execute o script de configuração:

@@ -1,9 +1,13 @@
 # Bucket S3 para o frontend
 resource "aws_s3_bucket" "frontend" {
-  bucket = "frontend-${var.nome_dominio}"
+  bucket = "frontend-${var.nome_aluno}.${var.nome_dominio}"
+
+  tags = {
+    Name = "frontend-${var.nome_aluno}"
+  }
 }
 
-# Configuração de hospedagem de site estático
+# Configuração do bucket S3
 resource "aws_s3_bucket_website_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -16,7 +20,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   }
 }
 
-# Política de bucket para acesso público
+# Política de bucket S3
 resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -34,17 +38,27 @@ resource "aws_s3_bucket_policy" "frontend" {
   })
 }
 
-# Certificado SSL
+# Certificado ACM
 resource "aws_acm_certificate" "frontend" {
-  domain_name       = var.nome_dominio
+  domain_name       = "frontend-${var.nome_aluno}.${var.nome_dominio}"
   validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
   }
+
+  tags = {
+    Name = "frontend-${var.nome_aluno}-cert"
+  }
 }
 
 # Validação do certificado
+resource "aws_acm_certificate_validation" "frontend" {
+  certificate_arn         = aws_acm_certificate.frontend.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# Registro DNS para validação do certificado
 resource "aws_route53_record" "cert_validation" {
   for_each = {
     for dvo in aws_acm_certificate.frontend.domain_validation_options : dvo.domain_name => {
@@ -62,8 +76,14 @@ resource "aws_route53_record" "cert_validation" {
   zone_id         = var.id_zona_hospedada
 }
 
-# Distribuição CloudFront
+# CloudFront distribution
 resource "aws_cloudfront_distribution" "frontend" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+  price_class         = "PriceClass_100"
+  aliases             = ["frontend-${var.nome_aluno}.${var.nome_dominio}"]
+
   origin {
     domain_name = aws_s3_bucket_website_configuration.frontend.website_endpoint
     origin_id   = "S3-${aws_s3_bucket.frontend.bucket}"
@@ -76,17 +96,12 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  enabled             = true
-  is_ipv6_enabled     = true
-  default_root_object = "index.html"
-  price_class         = "PriceClass_100"
-
-  aliases = [var.nome_dominio]
-
   default_cache_behavior {
-    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.frontend.bucket}"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.frontend.bucket}"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
 
     forwarded_values {
       query_string = false
@@ -94,11 +109,6 @@ resource "aws_cloudfront_distribution" "frontend" {
         forward = "none"
       }
     }
-
-    viewer_protocol_policy = "redirect-to-https"
-    min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
   }
 
   restrictions {
@@ -108,7 +118,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate.frontend.arn
+    acm_certificate_arn      = aws_acm_certificate_validation.frontend.certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
@@ -118,17 +128,38 @@ resource "aws_cloudfront_distribution" "frontend" {
     response_code      = 200
     response_page_path = "/index.html"
   }
+
+  tags = {
+    Name = "frontend-${var.nome_aluno}-distribution"
+  }
 }
 
-# Registro DNS para o CloudFront
+# Registro DNS para o frontend
 resource "aws_route53_record" "frontend" {
-  zone_id = var.id_zona_hospedada
-  name    = var.nome_dominio
+  name    = "frontend-${var.nome_aluno}.${var.nome_dominio}"
   type    = "A"
+  zone_id = var.id_zona_hospedada
 
   alias {
     name                   = aws_cloudfront_distribution.frontend.domain_name
     zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
     evaluate_target_health = false
   }
+}
+
+# Outputs
+output "bucket_name" {
+  value = aws_s3_bucket.frontend.bucket
+}
+
+output "bucket_website_endpoint" {
+  value = aws_s3_bucket_website_configuration.frontend.website_endpoint
+}
+
+output "cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.frontend.domain_name
+}
+
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
 } 
