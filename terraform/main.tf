@@ -33,6 +33,7 @@ module "api_gateway" {
   nome_aluno         = var.nome_aluno
   lambda_function_arn = module.lambda.function_arn
   lambda_function_name = module.lambda.function_name
+  zone_id           = data.aws_route53_zone.selecionada.zone_id
   tags              = var.tags
 }
 
@@ -51,7 +52,9 @@ module "dns" {
   nome_aluno         = var.nome_aluno
   zone_id           = data.aws_route53_zone.selecionada.zone_id
   api_gateway_domain = module.api_gateway.domain_name
-  frontend_bucket    = module.frontend.bucket_name
+  api_gateway_domain_zone_id = module.api_gateway.domain_name_configuration[0].hosted_zone_id
+  frontend_domain    = module.frontend.domain_name
+  frontend_domain_zone_id = module.frontend.domain_name_configuration[0].hosted_zone_id
   tags              = var.tags
 }
 
