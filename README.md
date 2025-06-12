@@ -43,6 +43,67 @@ Este projeto implementa um sistema de gerenciamento de DNS para laboratórios, p
    - Conta AWS com permissões para criar recursos
    - Zona hospedada no Route 53 (ver seção "Configuração do Route 53" abaixo)
 
+## Configuração Inicial
+
+1. **Clone o repositório**
+   ```bash
+   git clone <repositorio>
+   cd <diretorio>
+   ```
+
+2. **Configure as variáveis de ambiente AWS**
+   ```bash
+   export AWS_ACCESS_KEY_ID="sua_access_key"
+   export AWS_SECRET_ACCESS_KEY="sua_secret_key"
+   export AWS_DEFAULT_REGION="us-east-1"
+   ```
+
+3. **Configure o ambiente para o aluno**
+   ```bash
+   # Navegue até a pasta scripts
+   cd scripts
+   
+   # Torne o script executável
+   chmod +x configurar.sh
+   
+   # Execute o script de configuração
+   ./configurar.sh <nome_aluno> <senha>
+   
+   # Exemplo:
+   ./configurar.sh joao MinhaSenha123
+   ```
+
+   O script irá:
+   - Criar o arquivo `terraform.tfvars` com as configurações do aluno
+   - Configurar as variáveis de ambiente do frontend
+   - Configurar as variáveis de ambiente da Lambda
+   - Criar um arquivo `.env` na raiz do projeto
+   - Validar os parâmetros de entrada
+   - Mostrar os próximos passos
+
+   Requisitos para o nome do aluno:
+   - Deve conter apenas letras e números
+   - Não pode estar vazio
+
+   Requisitos para a senha:
+   - Mínimo de 8 caracteres
+   - Não pode estar vazia
+
+4. **Verifique os arquivos gerados**
+   ```bash
+   # Verificar arquivo terraform.tfvars
+   cat terraform/terraform.tfvars
+   
+   # Verificar arquivo .env do frontend
+   cat frontend/.env
+   
+   # Verificar arquivo .env da Lambda
+   cat lambda/.env
+   
+   # Verificar arquivo .env da raiz
+   cat .env
+   ```
+
 ## Configuração do Route 53
 
 O projeto assume que você já tem uma zona hospedada no Route 53. Se você ainda não tem, siga estes passos:
@@ -99,34 +160,6 @@ O projeto assume que você já tem uma zona hospedada no Route 53. Se você aind
    aws route53 list-hosted-zones
    
    # Anotar o ID da zona (será necessário para o deploy)
-   ```
-
-## Configuração Inicial
-
-1. **Clone o repositório**
-   ```bash
-   git clone <repositorio>
-   cd <diretorio>
-   ```
-
-2. **Configure as variáveis de ambiente AWS**
-   ```bash
-   export AWS_ACCESS_KEY_ID="sua_access_key"
-   export AWS_SECRET_ACCESS_KEY="sua_secret_key"
-   export AWS_DEFAULT_REGION="us-east-1"
-   ```
-
-3. **Configure as variáveis do Terraform**
-   ```bash
-   cd terraform
-   # Copie o arquivo de exemplo
-   cp terraform.tfvars.example terraform.tfvars
-   
-   # Edite o arquivo terraform.tfvars com seus valores:
-   # - nome_aluno: seu_nome (ex: joao, maria, etc)
-   # - nome_dominio: lab.tonanuvem.com
-   # - senha_compartilhada: sua_senha_segura
-   # - ttl_dns: 60
    ```
 
 ## Deploy da Infraestrutura
