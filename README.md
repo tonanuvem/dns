@@ -175,10 +175,10 @@ O projeto assume que você já tem uma zona hospedada no Route 53. Se você aind
    terraform plan
    ```
 
-3. **Execute o deploy**
-   ```bash
-   ./deploy.sh
-   ```
+3. Execute o script de deploy:
+```bash
+./scripts/deploy.sh
+```
 
 ## Pontos de Verificação
 

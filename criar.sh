@@ -77,7 +77,7 @@ check_status "Terraform plan"
 
 # 3. Executar deploy
 print_message "$YELLOW" "\n3. Executando deploy..."
-./deploy.sh
+./scripts/deploy.sh
 check_status "Terraform deploy"
 
 # 4. Obter outputs do Terraform

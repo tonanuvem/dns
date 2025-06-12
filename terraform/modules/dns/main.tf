@@ -11,8 +11,6 @@ resource "aws_route53_record" "api" {
   }
 
   ttl = 60
-
-  tags = var.tags
 }
 
 # Registro DNS para o frontend
@@ -28,6 +26,4 @@ resource "aws_route53_record" "frontend" {
   }
 
   ttl = 60
-
-  tags = var.tags
 } 

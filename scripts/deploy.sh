@@ -18,13 +18,8 @@ if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
     exit 1
 fi
 
-# Cria o arquivo de variáveis do Terraform
-cat > terraform.tfvars << EOL
-regiao_aws = "us-east-1"
-nome_dominio = "lab.tonanuvem.com"
-id_zona_hospedada = "SUA_ZONA_HOSPEDADA"
-senha_compartilhada = "SUA_SENHA_COMPARTILHADA"
-EOL
+# Navega para o diretório terraform
+cd ../terraform
 
 # Inicializa o Terraform
 echo "Inicializando o Terraform..."
@@ -57,7 +52,7 @@ if [[ $REPLY =~ ^[Ss]$ ]]; then
 
     # Upload do frontend para o S3
     echo "Fazendo upload do frontend para o S3..."
-    aws s3 sync build/ s3://frontend-$(terraform output -raw nome_dominio) --delete
+    aws s3 sync build/ s3://frontend-$(cd ../terraform && terraform output -raw nome_dominio) --delete
 
     echo "Deploy concluído com sucesso!"
 else

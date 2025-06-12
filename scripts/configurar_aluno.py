@@ -146,7 +146,7 @@ def main():
     print("\nPróximos passos:")
     print("1. Execute 'cd terraform && terraform init'")
     print("2. Execute 'cd terraform && terraform plan'")
-    print("3. Execute 'cd terraform && ./deploy.sh'")
+    print("3. Execute 'cd terraform && ../scripts/deploy.sh'")
     print("\nApós o deploy, você poderá acessar:")
     print(f"- Frontend: https://{nome_aluno}.lab.tonanuvem.com")
     print(f"- API: https://api.{nome_aluno}.lab.tonanuvem.com")
