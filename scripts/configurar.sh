@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Obter o diretório do script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Mudar para o diretório do script
+cd "$SCRIPT_DIR"
+
 # Verificar se o Python 3 está instalado
 if ! command -v python3 &> /dev/null; then
     echo "Erro: Python 3 não está instalado"

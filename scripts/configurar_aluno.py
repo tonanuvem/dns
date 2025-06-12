@@ -6,6 +6,9 @@ import json
 import shutil
 from pathlib import Path
 
+# Obter o diretório raiz do projeto (um nível acima do diretório scripts)
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+
 def validar_entrada(nome_aluno, senha):
     """Valida os parâmetros de entrada"""
     if not nome_aluno or not senha:
@@ -23,8 +26,8 @@ def validar_entrada(nome_aluno, senha):
 def configurar_terraform(nome_aluno, senha):
     """Configura as variáveis do Terraform"""
     # Caminho para o arquivo de exemplo
-    tf_vars_example = Path("terraform/terraform.tfvars.example")
-    tf_vars = Path("terraform/terraform.tfvars")
+    tf_vars_example = PROJECT_ROOT / "terraform" / "terraform.tfvars.example"
+    tf_vars = PROJECT_ROOT / "terraform" / "terraform.tfvars"
     
     if not tf_vars_example.exists():
         print(f"Erro: Arquivo {tf_vars_example} não encontrado")
@@ -48,7 +51,7 @@ def configurar_terraform(nome_aluno, senha):
 def configurar_frontend(nome_aluno):
     """Configura as variáveis do frontend"""
     # Criar arquivo .env para o frontend
-    env_file = Path("frontend/.env")
+    env_file = PROJECT_ROOT / "frontend" / ".env"
     
     conteudo = f"""REACT_APP_API_URL=https://api.{nome_aluno}.lab.tonanuvem.com
 REACT_APP_TITLE=Gerenciador DNS - {nome_aluno}
@@ -62,7 +65,7 @@ REACT_APP_TITLE=Gerenciador DNS - {nome_aluno}
 def configurar_lambda(nome_aluno, senha):
     """Configura as variáveis da Lambda"""
     # Criar arquivo .env para a Lambda
-    env_file = Path("lambda/.env")
+    env_file = PROJECT_ROOT / "lambda" / ".env"
     
     conteudo = f"""DYNAMODB_TABLE=registros-dns-{nome_aluno}
 SENHA_API={senha}
@@ -76,7 +79,7 @@ TTL_DNS=60
 
 def criar_arquivo_env(nome_aluno, senha):
     """Cria arquivo .env na raiz do projeto"""
-    env_file = Path(".env")
+    env_file = PROJECT_ROOT / ".env"
     
     conteudo = f"""NOME_ALUNO={nome_aluno}
 SENHA_API={senha}
