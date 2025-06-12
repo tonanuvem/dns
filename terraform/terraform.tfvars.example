@@ -1,0 +1,12 @@
+aws_region = "us-east-1"
+nome_aluno = "joao"  # Substitua pelo nome do aluno
+nome_dominio = "lab.tonanuvem.com"
+senha_compartilhada = "sua_senha_segura_aqui"
+ttl_dns = 60
+
+tags = {
+  Project     = "GerenciadorDNS"
+  Environment = "Production"
+  ManagedBy   = "Terraform"
+  Aluno       = "joao"  # Substitua pelo nome do aluno
+} 
