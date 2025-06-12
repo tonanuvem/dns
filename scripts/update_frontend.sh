@@ -30,12 +30,6 @@ if [ ! -f "$BASE_DIR/config.sh" ]; then
     exit 1
 fi
 
-# Verificar se as variáveis de ambiente estão configuradas
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
-    print_message "As variáveis de ambiente AWS não estão configuradas. Execute o config.sh primeiro." "$RED"
-    exit 1
-fi
-
 # Verificar se o diretório frontend_build existe
 if [ ! -d "$BASE_DIR/terraform/frontend_build" ]; then
     print_message "O diretório frontend_build não foi encontrado. Execute o create_frontend.sh primeiro." "$RED"
