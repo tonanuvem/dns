@@ -5,14 +5,14 @@ variable "aws_region" {
 }
 
 variable "nome_aluno" {
-  description = "Nome do aluno para prefixar os recursos"
+  description = "Nome do aluno para prefixo dos recursos"
   type        = string
 }
 
 variable "nome_dominio" {
-  description = "Nome do domínio base (ex: lab.tonanuvem.com)"
+  description = "Nome do domínio base para os recursos"
   type        = string
-  default     = "lab.tonanuvem.com"
+  default     = "dns.lab"
 }
 
 variable "id_zona_hospedada" {

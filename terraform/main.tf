@@ -8,6 +8,7 @@ terraform {
   required_version = ">= 1.2.0"
 }
 
+# Configuração do provedor AWS
 provider "aws" {
   region = "us-east-1"
 }
@@ -17,17 +18,7 @@ data "aws_route53_zone" "selecionada" {
   zone_id = var.id_zona_hospedada
 }
 
-# Módulo para criar a função Lambda
-module "lambda_api" {
-  source = "./modules/lambda_api"
-
-  nome_dominio = var.nome_dominio
-  id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
-  senha_compartilhada = var.senha_compartilhada
-  tags = var.tags
-}
-
-# Módulo para criar a API Gateway
+# Módulo da API Gateway
 module "api_gateway" {
   source = "./modules/api_gateway"
 
@@ -37,13 +28,20 @@ module "api_gateway" {
   tags             = var.tags
 }
 
-# Módulo para criar o frontend
+# Módulo do Frontend
 module "frontend" {
   source = "./modules/frontend"
 
   nome_aluno   = var.nome_aluno
   nome_dominio = var.nome_dominio
   tags         = var.tags
+}
+
+# Módulo da função Lambda
+module "lambda_api" {
+  source = "./modules/lambda_api"
+
+  tags = var.tags
 }
 
 # Módulo para criar os registros DNS

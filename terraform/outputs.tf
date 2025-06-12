@@ -1,11 +1,16 @@
-output "frontend_url" {
-  description = "URL do frontend"
-  value       = "https://${var.nome_aluno}.lab.tonanuvem.com"
+output "api_endpoint" {
+  description = "Endpoint da API Gateway"
+  value       = module.api_gateway.api_endpoint
 }
 
-output "api_url" {
-  description = "URL da API"
-  value       = "https://api.${var.nome_aluno}.lab.tonanuvem.com"
+output "frontend_url" {
+  description = "URL do frontend"
+  value       = module.frontend.frontend_url
+}
+
+output "dynamodb_table_name" {
+  description = "Nome da tabela DynamoDB"
+  value       = module.lambda_api.dynamodb_table_name
 }
 
 output "lambda_function_name" {
