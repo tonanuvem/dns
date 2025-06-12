@@ -8,84 +8,48 @@ NC='\033[0m' # No Color
 
 # Função para imprimir mensagens
 print_message() {
-    echo -e "${1}${2}${NC}"
+    echo -e "${2}${1}${NC}"
 }
 
-# Função para verificar status
+# Função para verificar status do comando
 check_status() {
     if [ $? -eq 0 ]; then
-        print_message "$GREEN" "✅ $1 concluído com sucesso!"
+        print_message "✓ $1" "$GREEN"
     else
-        print_message "$RED" "❌ Erro ao $1"
+        print_message "✗ $2" "$RED"
         exit 1
     fi
 }
 
-# Obtém o diretório base do projeto
+# Obter o diretório base do projeto
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 1. Verificar se o config.sh foi executado
-print_message "$YELLOW" "\n1. Verificando configuração inicial..."
-
-# Verificar se o arquivo terraform.tfvars existe
-if [ ! -f "$BASE_DIR/terraform/terraform.tfvars" ]; then
-    print_message "$RED" "❌ Arquivo terraform.tfvars não encontrado."
-    print_message "$YELLOW" "Execute o script config.sh primeiro:"
-    print_message "$YELLOW" "./config.sh"
+# Verificar se o script config.sh foi executado
+if [ ! -f "$BASE_DIR/config.sh" ]; then
+    print_message "O arquivo config.sh não foi encontrado. Execute-o primeiro." "$RED"
     exit 1
 fi
 
-# 2. Verificar e criar o arquivo ZIP do Lambda
-print_message "$YELLOW" "\n2. Verificando arquivo ZIP do Lambda..."
-
-# Verificar se o diretório lambda existe
-if [ ! -d "$BASE_DIR/lambda" ]; then
-    print_message "$RED" "❌ Diretório lambda não encontrado."
+# Verificar se as variáveis de ambiente estão configuradas
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
+    print_message "As variáveis de ambiente AWS não estão configuradas. Execute o config.sh primeiro." "$RED"
     exit 1
 fi
 
-# Verificar se o arquivo gerenciador_dns.py existe
-if [ ! -f "$BASE_DIR/lambda/gerenciador_dns.py" ]; then
-    print_message "$RED" "❌ Arquivo lambda/gerenciador_dns.py não encontrado."
+# Verificar se o arquivo ZIP da função Lambda existe
+if [ ! -f "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
+    print_message "O arquivo ZIP da função Lambda não foi encontrado. Execute o config.sh primeiro." "$RED"
     exit 1
 fi
 
-# Criar diretório do módulo lambda se não existir
-mkdir -p "$BASE_DIR/terraform/modules/lambda_api"
+# Criar build do frontend
+print_message "Criando build do frontend..." "$YELLOW"
+"$BASE_DIR/scripts/create_frontend.sh"
+check_status "Build do frontend criado com sucesso" "Erro ao criar build do frontend"
 
-# Criar arquivo ZIP do Lambda
-print_message "$YELLOW" "Criando arquivo ZIP do Lambda..."
-cd "$BASE_DIR/lambda"
-zip -r "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" .
-cd "$BASE_DIR"
-check_status "Criação do arquivo ZIP do Lambda"
-
-# Verificar se o arquivo ZIP foi criado corretamente
-if [ ! -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
-    print_message "$RED" "❌ Arquivo ZIP não foi criado corretamente."
-    exit 1
-fi
-
-# Verificar se o arquivo ZIP tem conteúdo
-if [ ! -s "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
-    print_message "$RED" "❌ Arquivo ZIP está vazio."
-    exit 1
-fi
-
-# 3. Executar deploy
-print_message "$YELLOW" "\n3. Executando deploy..."
-
-# Verificar se o script deploy.sh existe
-if [ ! -f "$BASE_DIR/scripts/deploy.sh" ]; then
-    print_message "$RED" "❌ Script scripts/deploy.sh não encontrado."
-    exit 1
-fi
-
-# Tornar o script deploy.sh executável
-chmod +x "$BASE_DIR/scripts/deploy.sh"
-
-# Executar o deploy
+# Executar o script de deploy
+print_message "Executando deploy..." "$YELLOW"
 "$BASE_DIR/scripts/deploy.sh"
-check_status "Terraform deploy"
+check_status "Deploy concluído com sucesso" "Erro ao executar deploy"
 
-print_message "$GREEN" "\n✅ Processo concluído com sucesso!" 
+print_message "Processo concluído com sucesso!" "$GREEN" 

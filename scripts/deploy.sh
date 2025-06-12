@@ -1,5 +1,26 @@
 #!/bin/bash
 
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Função para imprimir mensagens
+print_message() {
+    echo -e "${1}${2}${NC}"
+}
+
+# Função para verificar status
+check_status() {
+    if [ $? -eq 0 ]; then
+        print_message "$GREEN" "✅ $1 concluído com sucesso!"
+    else
+        print_message "$RED" "❌ Erro ao $1"
+        exit 1
+    fi
+}
+
 # Verifica se o AWS CLI está instalado
 if ! command -v aws &> /dev/null; then
     echo "AWS CLI não encontrado. Por favor, instale-o primeiro."
@@ -15,49 +36,51 @@ fi
 # Obtém o diretório base do projeto
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Navega para o diretório terraform
-cd "$BASE_DIR/terraform"
+# 1. Verificar se estamos no diretório correto
+print_message "$YELLOW" "\n1. Verificando diretório..."
 
-# Verifica se estamos no diretório correto
-if [ ! -f "main.tf" ]; then
-    echo "Erro: Arquivo main.tf não encontrado. Certifique-se de estar no diretório correto."
+if [ ! -f "$BASE_DIR/terraform/main.tf" ]; then
+    print_message "$RED" "❌ Arquivo terraform/main.tf não encontrado."
+    print_message "$YELLOW" "Execute o script do diretório raiz do projeto."
     exit 1
 fi
 
-# Inicializa o Terraform
-echo "Inicializando o Terraform..."
+# 2. Verificar arquivos necessários
+print_message "$YELLOW" "\n2. Verificando arquivos necessários..."
+
+# Verificar arquivo ZIP do Lambda
+if [ ! -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
+    print_message "$RED" "❌ Arquivo ZIP do Lambda não encontrado."
+    print_message "$YELLOW" "Execute o script criar.sh primeiro."
+    exit 1
+fi
+
+# Verificar build do frontend
+if [ ! -d "$BASE_DIR/terraform/frontend_build" ]; then
+    print_message "$RED" "❌ Diretório frontend_build não encontrado."
+    print_message "$YELLOW" "Execute o script create_frontend.sh primeiro."
+    exit 1
+fi
+
+# 3. Executar terraform
+print_message "$YELLOW" "\n3. Executando Terraform..."
+
+# Navegar para o diretório terraform
+cd "$BASE_DIR/terraform"
+
+# Inicializar o Terraform
+print_message "$YELLOW" "Inicializando o Terraform..."
 terraform init
+check_status "Inicialização do Terraform"
 
-# Plano de execução
-echo "Criando plano de execução..."
+# Criar plano de execução
+print_message "$YELLOW" "Criando plano de execução..."
 terraform plan -out=tfplan
+check_status "Criação do plano"
 
-# Confirmação do usuário
-read -p "Deseja aplicar as alterações? (s/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Ss]$ ]]; then
-    # Aplica as alterações
-    echo "Aplicando alterações..."
-    terraform apply tfplan
+# Aplicar as mudanças
+print_message "$YELLOW" "Aplicando mudanças..."
+terraform apply tfplan
+check_status "Aplicação das mudanças"
 
-    # Obtém a URL da API
-    API_URL=$(terraform output -raw api_url)
-    echo "API URL: $API_URL"
-
-    # Atualiza o arquivo .env do frontend
-    echo "REACT_APP_API_URL=$API_URL" > "$BASE_DIR/frontend/.env"
-
-    # Build do frontend
-    echo "Fazendo build do frontend..."
-    cd "$BASE_DIR/frontend"
-    npm install
-    npm run build
-
-    # Upload do frontend para o S3
-    echo "Fazendo upload do frontend para o S3..."
-    aws s3 sync build/ s3://frontend-$(cd "$BASE_DIR/terraform" && terraform output -raw nome_dominio) --delete
-
-    echo "Deploy concluído com sucesso!"
-else
-    echo "Operação cancelada pelo usuário."
-fi 
+print_message "$GREEN" "\n✅ Deploy concluído com sucesso!" 

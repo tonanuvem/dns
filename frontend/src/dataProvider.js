@@ -1,59 +1,57 @@
 import { fetchUtils } from 'react-admin';
 
-const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const httpClient = (url, options = {}) => {
   if (!options.headers) {
     options.headers = new Headers({ Accept: 'application/json' });
   }
-  const token = localStorage.getItem('apiKey');
-  options.headers.set('X-API-Key', token);
   return fetchUtils.fetchJson(url, options);
 };
 
-export const dataProvider = {
-  getList: (resource, params) => {
-    const url = `${apiUrl}/${resource}`;
-    return httpClient(url).then(({ json }) => ({
-      data: json.registros,
-      total: json.registros.length,
-    }));
-  },
-
-  getOne: (resource, params) => {
-    const url = `${apiUrl}/${resource}/${params.id}`;
-    return httpClient(url).then(({ json }) => ({
+export const DataProvider = {
+  getList: async (resource, params) => {
+    const { json } = await httpClient(`${apiUrl}/${resource}`);
+    return {
       data: json,
-    }));
+      total: json.length,
+    };
   },
 
-  create: (resource, params) => {
-    const url = `${apiUrl}/${resource}`;
-    return httpClient(url, {
+  getOne: async (resource, params) => {
+    const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`);
+    return {
+      data: json,
+    };
+  },
+
+  create: async (resource, params) => {
+    const { json } = await httpClient(`${apiUrl}/${resource}`, {
       method: 'POST',
       body: JSON.stringify(params.data),
-    }).then(({ json }) => ({
+    });
+    return {
       data: { ...params.data, id: json.id },
-    }));
+    };
   },
 
-  update: (resource, params) => {
-    const url = `${apiUrl}/${resource}/${params.id}`;
-    return httpClient(url, {
+  update: async (resource, params) => {
+    const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`, {
       method: 'PUT',
       body: JSON.stringify(params.data),
-    }).then(({ json }) => ({
+    });
+    return {
       data: json,
-    }));
+    };
   },
 
-  delete: (resource, params) => {
-    const url = `${apiUrl}/${resource}/${params.id}`;
-    return httpClient(url, {
+  delete: async (resource, params) => {
+    const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`, {
       method: 'DELETE',
-    }).then(({ json }) => ({
+    });
+    return {
       data: json,
-    }));
+    };
   },
 
   deleteMany: (resource, params) => {
