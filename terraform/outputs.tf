@@ -13,17 +13,7 @@ output "lambda_function_name" {
   value       = module.lambda.function_name
 }
 
-output "dynamodb_table" {
-  description = "Nome da tabela DynamoDB"
-  value       = module.lambda.table_name
-}
-
 output "zone_id" {
   description = "ID da zona hospedada no Route 53"
   value       = var.id_zona_hospedada
 }
-
-output "nameservers" {
-  description = "Nameservers da zona hospedada"
-  value       = data.aws_route53_zone.selecionada.name_servers
-} 

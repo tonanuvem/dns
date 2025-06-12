@@ -19,7 +19,7 @@ data "aws_route53_zone" "selecionada" {
 
 # Módulo para criar a função Lambda
 module "lambda" {
-  source = "./modules/lambda"
+  source = "./modules/lambda_api"
 
   nome_aluno         = var.nome_aluno
   senha_compartilhada = var.senha_compartilhada
