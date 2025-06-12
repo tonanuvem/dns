@@ -12,12 +12,6 @@ if ! command -v terraform &> /dev/null; then
     exit 1
 fi
 
-# Verifica se as variáveis de ambiente necessárias estão definidas
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-    echo "Por favor, defina as variáveis de ambiente AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY"
-    exit 1
-fi
-
 # Navega para o diretório terraform
 cd ../terraform
 
