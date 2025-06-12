@@ -18,6 +18,14 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
+# Verificar LabRole
+echo "Verificando LabRole..."
+./scripts/validar_LabRole.sh
+if [ $? -ne 0 ]; then
+    echo "Erro: Validação da LabRole falhou"
+    exit 1
+fi
+
 # Criar ambiente virtual se não existir
 if [ ! -d "venv" ]; then
     echo "Criando ambiente virtual..."
@@ -45,6 +53,7 @@ fi
 echo "Configurando permissões dos scripts..."
 chmod +x scripts/configurar_aluno.py
 chmod +x scripts/dns_list_zonas.py
+chmod +x scripts/validar_LabRole.sh
 
 # Listar zonas DNS disponíveis
 echo -e "\nVerificando zonas DNS disponíveis..."

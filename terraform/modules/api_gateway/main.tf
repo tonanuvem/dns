@@ -114,17 +114,4 @@ resource "aws_route53_record" "api" {
     zone_id                = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
     evaluate_target_health = false
   }
-}
-
-# Outputs
-output "api_endpoint" {
-  value = aws_apigatewayv2_api.api.api_endpoint
-}
-
-output "domain_name" {
-  value = aws_apigatewayv2_domain_name.api.domain_name
-}
-
-output "domain_name_configuration" {
-  value = aws_apigatewayv2_domain_name.api.domain_name_configuration
 } 

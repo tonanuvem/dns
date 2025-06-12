@@ -31,7 +31,7 @@ data "archive_file" "lambda_zip" {
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "gerenciador-dns"
-  role            = aws_iam_role.lambda_role.arn
+  role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
   handler         = "gerenciador_dns.lambda_handler"
   runtime         = "python3.9"
   timeout         = 30
@@ -48,60 +48,8 @@ resource "aws_lambda_function" "gerenciador_dns" {
   }
 }
 
-# Role IAM para a função Lambda
-resource "aws_iam_role" "lambda_role" {
-  name = "lambda_gerenciador_dns_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name = "lambda-gerenciador-dns-role"
-  }
-}
-
-# Política IAM para a função Lambda
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_gerenciador_dns_policy"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Scan",
-          "dynamodb:Query"
-        ]
-        Resource = aws_dynamodb_table.registros_dns.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
-  })
-}
+# Obter o ID da conta atual
+data "aws_caller_identity" "current" {}
 
 # API Gateway
 resource "aws_apigatewayv2_api" "api" {

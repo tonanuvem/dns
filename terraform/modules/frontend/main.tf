@@ -145,21 +145,4 @@ resource "aws_route53_record" "frontend" {
     zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
     evaluate_target_health = false
   }
-}
-
-# Outputs
-output "bucket_name" {
-  value = aws_s3_bucket.frontend.bucket
-}
-
-output "bucket_website_endpoint" {
-  value = aws_s3_bucket_website_configuration.frontend.website_endpoint
-}
-
-output "cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.frontend.domain_name
-}
-
-output "cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.frontend.id
 } 
