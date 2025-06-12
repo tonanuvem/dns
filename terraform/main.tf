@@ -9,24 +9,50 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
-# Módulo para a função Lambda e API Gateway
-module "lambda_api" {
-  source = "./modules/lambda_api"
+# Data source para obter a zona hospedada
+data "aws_route53_zone" "selecionada" {
+  zone_id = var.id_zona_hospedada
+}
 
-  nome_dominio        = var.nome_dominio
-  id_zona_hospedada  = var.id_zona_hospedada
+# Módulo para criar a função Lambda
+module "lambda" {
+  source = "./modules/lambda"
+
+  nome_aluno         = var.nome_aluno
   senha_compartilhada = var.senha_compartilhada
+  tags              = var.tags
 }
 
-# Módulo para o bucket S3 e CloudFront
+# Módulo para criar a API Gateway
+module "api_gateway" {
+  source = "./modules/api_gateway"
+
+  nome_aluno         = var.nome_aluno
+  lambda_function_arn = module.lambda.function_arn
+  lambda_function_name = module.lambda.function_name
+  tags              = var.tags
+}
+
+# Módulo para criar o frontend
 module "frontend" {
   source = "./modules/frontend"
 
-  nome_dominio = var.nome_dominio
-  id_zona_hospedada = var.id_zona_hospedada
+  nome_aluno = var.nome_aluno
+  tags       = var.tags
+}
+
+# Módulo para criar os registros DNS
+module "dns" {
+  source = "./modules/dns"
+
+  nome_aluno         = var.nome_aluno
+  zone_id           = data.aws_route53_zone.selecionada.zone_id
+  api_gateway_domain = module.api_gateway.domain_name
+  frontend_bucket    = module.frontend.bucket_name
+  tags              = var.tags
 }
 
 # Criar zona hospedada para o aluno

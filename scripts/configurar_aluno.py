@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 # Obter o diretório raiz do projeto (um nível acima do diretório scripts)
@@ -23,6 +24,26 @@ def validar_entrada(nome_aluno, senha):
         print("Erro: senha deve ter pelo menos 8 caracteres")
         sys.exit(1)
 
+def obter_zone_id(nome_aluno):
+    """Obtém o ID da zona DNS do aluno"""
+    try:
+        # Executar script para obter zone_id
+        resultado = subprocess.run(
+            ['python3', 'dns_list_zonas.py', f'{nome_aluno}.lab.tonanuvem.com'],
+            capture_output=True,
+            text=True,
+            cwd=PROJECT_ROOT / 'scripts'
+        )
+        
+        if resultado.returncode == 0:
+            return resultado.stdout.strip()
+        else:
+            print(f"Erro ao obter zone_id: {resultado.stderr}")
+            return None
+    except Exception as e:
+        print(f"Erro ao executar script de DNS: {str(e)}")
+        return None
+
 def configurar_terraform(nome_aluno, senha):
     """Configura as variáveis do Terraform"""
     # Caminho para o arquivo de exemplo
@@ -33,6 +54,12 @@ def configurar_terraform(nome_aluno, senha):
         print(f"Erro: Arquivo {tf_vars_example} não encontrado")
         sys.exit(1)
     
+    # Obter zone_id
+    zone_id = obter_zone_id(nome_aluno)
+    if not zone_id:
+        print("Erro: Não foi possível obter o ID da zona DNS")
+        sys.exit(1)
+    
     # Ler o arquivo de exemplo
     with open(tf_vars_example, 'r') as f:
         conteudo = f.read()
@@ -41,12 +68,14 @@ def configurar_terraform(nome_aluno, senha):
     conteudo = conteudo.replace('nome_aluno = "joao"', f'nome_aluno = "{nome_aluno}"')
     conteudo = conteudo.replace('senha_compartilhada = "sua_senha_segura_aqui"', f'senha_compartilhada = "{senha}"')
     conteudo = conteudo.replace('Aluno       = "joao"', f'Aluno       = "{nome_aluno}"')
+    conteudo = conteudo.replace('id_zona_hospedada = ""', f'id_zona_hospedada = "{zone_id}"')
     
     # Salvar o novo arquivo
     with open(tf_vars, 'w') as f:
         f.write(conteudo)
     
     print(f"✓ Arquivo {tf_vars} configurado com sucesso")
+    print(f"✓ Zone ID: {zone_id}")
 
 def configurar_frontend(nome_aluno):
     """Configura as variáveis do frontend"""

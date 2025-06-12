@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "nome_aluno" {
-  description = "Nome do aluno para criar o subdomínio (ex: joao, maria, etc)"
+  description = "Nome do aluno para prefixar os recursos"
   type        = string
 }
 
@@ -21,7 +21,7 @@ variable "id_zona_hospedada" {
 }
 
 variable "senha_compartilhada" {
-  description = "Senha para autenticação na API"
+  description = "Senha compartilhada para autenticação na API"
   type        = string
   sensitive   = true
 }
@@ -33,11 +33,7 @@ variable "ttl_dns" {
 }
 
 variable "tags" {
-  description = "Tags para os recursos AWS"
+  description = "Tags padrão para todos os recursos"
   type        = map(string)
-  default = {
-    Project     = "GerenciadorDNS"
-    Environment = "Production"
-    ManagedBy   = "Terraform"
-  }
+  default     = {}
 } 
