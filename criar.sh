@@ -50,41 +50,25 @@ if [ ! -f "$BASE_DIR/lambda/gerenciador_dns.py" ]; then
     exit 1
 fi
 
-# Criar diretório lambda_zip se não existir
-mkdir -p "$BASE_DIR/lambda_zip"
+# Criar diretório do módulo lambda se não existir
+mkdir -p "$BASE_DIR/terraform/modules/lambda_api"
 
 # Criar arquivo ZIP do Lambda
 print_message "$YELLOW" "Criando arquivo ZIP do Lambda..."
 cd "$BASE_DIR/lambda"
-zip -r "$BASE_DIR/lambda_zip/gerenciador_dns.zip" .
+zip -r "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" .
 cd "$BASE_DIR"
 check_status "Criação do arquivo ZIP do Lambda"
 
 # Verificar se o arquivo ZIP foi criado corretamente
-if [ ! -f "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
+if [ ! -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
     print_message "$RED" "❌ Arquivo ZIP não foi criado corretamente."
     exit 1
 fi
 
 # Verificar se o arquivo ZIP tem conteúdo
-if [ ! -s "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
+if [ ! -s "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
     print_message "$RED" "❌ Arquivo ZIP está vazio."
-    exit 1
-fi
-
-# Copiar o arquivo ZIP para o diretório do módulo lambda
-print_message "$YELLOW" "Copiando arquivo ZIP para o módulo lambda..."
-
-# Criar diretório do módulo lambda se não existir
-mkdir -p "$BASE_DIR/terraform/modules/lambda_api"
-
-# Copiar o arquivo
-cp "$BASE_DIR/lambda_zip/gerenciador_dns.zip" "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip"
-check_status "Cópia do arquivo ZIP"
-
-# Verificar se o arquivo foi copiado corretamente
-if [ ! -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
-    print_message "$RED" "❌ Falha ao copiar o arquivo ZIP para o módulo lambda."
     exit 1
 fi
 
