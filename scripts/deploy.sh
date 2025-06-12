@@ -12,8 +12,11 @@ if ! command -v terraform &> /dev/null; then
     exit 1
 fi
 
+# Obtém o diretório base do projeto
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Navega para o diretório terraform
-cd ../terraform
+cd "$BASE_DIR/terraform"
 
 # Verifica se estamos no diretório correto
 if [ ! -f "main.tf" ]; then
@@ -42,17 +45,17 @@ if [[ $REPLY =~ ^[Ss]$ ]]; then
     echo "API URL: $API_URL"
 
     # Atualiza o arquivo .env do frontend
-    echo "REACT_APP_API_URL=$API_URL" > ../frontend/.env
+    echo "REACT_APP_API_URL=$API_URL" > "$BASE_DIR/frontend/.env"
 
     # Build do frontend
     echo "Fazendo build do frontend..."
-    cd ../frontend
+    cd "$BASE_DIR/frontend"
     npm install
     npm run build
 
     # Upload do frontend para o S3
     echo "Fazendo upload do frontend para o S3..."
-    aws s3 sync build/ s3://frontend-$(cd ../terraform && terraform output -raw nome_dominio) --delete
+    aws s3 sync build/ s3://frontend-$(cd "$BASE_DIR/terraform" && terraform output -raw nome_dominio) --delete
 
     echo "Deploy concluído com sucesso!"
 else
