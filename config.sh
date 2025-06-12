@@ -46,14 +46,24 @@ echo "Configurando permissões dos scripts..."
 chmod +x scripts/configurar_aluno.py
 chmod +x scripts/dns_list_zonas.py
 
-# Executar o script Python
-echo "Executando configuração..."
-python3 scripts/configurar_aluno.py "$1" "$2"
-
 # Listar zonas DNS disponíveis
-echo -e "\nZonas DNS disponíveis:"
-echo "======================"
+echo -e "\nVerificando zonas DNS disponíveis..."
+echo "====================================="
 python3 scripts/dns_list_zonas.py
+
+# Verificar se a zona do aluno existe
+echo -e "\nVerificando zona DNS do aluno..."
+echo "================================="
+ZONE_ID=$(python3 scripts/dns_list_zonas.py "${1}.lab.tonanuvem.com")
+if [ -z "$ZONE_ID" ]; then
+    echo "Erro: Zona DNS '${1}.lab.tonanuvem.com' não encontrada"
+    exit 1
+fi
+echo "✓ Zona DNS encontrada: $ZONE_ID"
+
+# Executar o script Python
+echo -e "\nExecutando configuração..."
+python3 scripts/configurar_aluno.py "$1" "$2"
 
 # Desativar ambiente virtual
 deactivate
