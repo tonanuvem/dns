@@ -15,6 +15,12 @@ fi
 # Navega para o diretório terraform
 cd ../terraform
 
+# Verifica se estamos no diretório correto
+if [ ! -f "main.tf" ]; then
+    echo "Erro: Arquivo main.tf não encontrado. Certifique-se de estar no diretório correto."
+    exit 1
+fi
+
 # Inicializa o Terraform
 echo "Inicializando o Terraform..."
 terraform init
