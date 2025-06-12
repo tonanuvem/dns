@@ -21,20 +21,20 @@ data "aws_route53_zone" "selecionada" {
 module "lambda" {
   source = "./modules/lambda_api"
 
-  nome_aluno         = var.nome_aluno
+  nome_dominio = var.nome_dominio
+  id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
   senha_compartilhada = var.senha_compartilhada
-  tags              = var.tags
 }
 
 # Módulo para criar a API Gateway
 module "api_gateway" {
   source = "./modules/api_gateway"
 
-  nome_aluno         = var.nome_aluno
+  nome_aluno = var.nome_aluno
   lambda_function_arn = module.lambda.function_arn
   lambda_function_name = module.lambda.function_name
-  zone_id           = data.aws_route53_zone.selecionada.zone_id
-  tags              = var.tags
+  zone_id = data.aws_route53_zone.selecionada.zone_id
+  tags = var.tags
 }
 
 # Módulo para criar o frontend
@@ -49,13 +49,13 @@ module "frontend" {
 module "dns" {
   source = "./modules/dns"
 
-  nome_aluno         = var.nome_aluno
-  zone_id           = data.aws_route53_zone.selecionada.zone_id
+  nome_aluno = var.nome_aluno
+  zone_id = data.aws_route53_zone.selecionada.zone_id
   api_gateway_domain = module.api_gateway.domain_name
   api_gateway_domain_zone_id = module.api_gateway.domain_name_configuration[0].hosted_zone_id
-  frontend_domain    = module.frontend.cloudfront_domain_name
+  frontend_domain = module.frontend.cloudfront_domain_name
   frontend_domain_zone_id = module.frontend.cloudfront_hosted_zone_id
-  tags              = var.tags
+  tags = var.tags
 }
 
 # Criar zona hospedada para o aluno
