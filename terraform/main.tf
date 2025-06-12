@@ -41,8 +41,8 @@ module "api_gateway" {
 module "frontend" {
   source = "./modules/frontend"
 
-  nome_aluno = var.nome_aluno
-  tags       = var.tags
+  nome_dominio = var.nome_dominio
+  id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
 }
 
 # Módulo para criar os registros DNS
@@ -53,8 +53,8 @@ module "dns" {
   zone_id           = data.aws_route53_zone.selecionada.zone_id
   api_gateway_domain = module.api_gateway.domain_name
   api_gateway_domain_zone_id = module.api_gateway.domain_name_configuration[0].hosted_zone_id
-  frontend_domain    = module.frontend.domain_name
-  frontend_domain_zone_id = module.frontend.domain_name_configuration[0].hosted_zone_id
+  frontend_domain    = module.frontend.cloudfront_domain_name
+  frontend_domain_zone_id = module.frontend.cloudfront_hosted_zone_id
   tags              = var.tags
 }
 

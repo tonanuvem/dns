@@ -17,7 +17,8 @@ fi
 # Se tiver só uma zona
 if [ "$QTD_ZONAS" -eq 1 ]; then
     ZONA_ID=$(echo "$ZONAS_JSON" | jq -r '.HostedZones[0].Id' | sed 's|/hostedzone/||')
-    echo "✅ Apenas uma zona encontrada: $ZONA_ID"
+    NOME_DOMINIO=$(echo "$ZONAS_JSON" | jq -r '.HostedZones[0].Name' | sed 's/\.$//')
+    echo "✅ Apenas uma zona encontrada: $ZONA_ID ($NOME_DOMINIO)"
 else
     echo "📋 Zonas encontradas:"
     for i in $(seq 0 $((QTD_ZONAS - 1))); do
@@ -37,9 +38,10 @@ else
     fi
 
     ZONA_ID=$(echo "$ZONAS_JSON" | jq -r ".HostedZones[$ESCOLHA].Id" | sed 's|/hostedzone/||')
+    NOME_DOMINIO=$(echo "$ZONAS_JSON" | jq -r ".HostedZones[$ESCOLHA].Name" | sed 's/\.$//')
 fi
 
-# Atualizar o arquivo terraform.tfvars com o ID da zona
+# Atualizar o arquivo terraform.tfvars com o ID da zona e nome do domínio
 TF_VARS_FILE="terraform/terraform.tfvars"
 
 # Verificar se o arquivo existe
@@ -48,9 +50,11 @@ if [ ! -f "$TF_VARS_FILE" ]; then
     exit 1
 fi
 
-# Atualizar o ID da zona no arquivo
-sed -i "s/zone_id = \".*\"/zone_id = \"$ZONA_ID\"/" "$TF_VARS_FILE"
-echo "✅ ID da zona atualizado no arquivo $TF_VARS_FILE"
+# Atualizar o ID da zona e nome do domínio no arquivo
+sed -i "s/id_zona_hospedada = \".*\"/id_zona_hospedada = \"$ZONA_ID\"/" "$TF_VARS_FILE"
+sed -i "s/nome_dominio = \".*\"/nome_dominio = \"$NOME_DOMINIO\"/" "$TF_VARS_FILE"
+
+echo "✅ ID da zona e nome do domínio atualizados no arquivo $TF_VARS_FILE"
 
 echo ""
 echo "📄 Detalhes da zona $ZONA_ID:"
