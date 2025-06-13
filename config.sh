@@ -6,72 +6,128 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # Mudar para o diretório do script
 cd "$SCRIPT_DIR"
 
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Função para imprimir mensagens
+print_message() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+# Função para imprimir erros
+print_error() {
+    echo -e "${RED}[ERRO]${NC} $1"
+}
+
+# Função para verificar se um comando foi bem sucedido
+check_status() {
+    if [ $? -eq 0 ]; then
+        print_message "$1"
+    else
+        print_error "$2"
+        exit 1
+    fi
+}
+
 # Verificar se Python 3 está instalado
 if ! command -v python3 &> /dev/null; then
-    echo "Erro: Python 3 não está instalado"
+    print_error "Python 3 não está instalado"
     exit 1
 fi
 
 # Verificar argumentos
 if [ "$#" -ne 2 ]; then
-  echo "Uso: $0 <nome_aluno> <senha>"
-  exit 1
-fi
-
-# Verificar LabRole
-echo "Verificando LabRole..."
-./scripts/validar_LabRole.sh
-if [ $? -ne 0 ]; then
-    echo "Erro: Validação da LabRole falhou"
+    print_error "Uso: $0 <nome_aluno> <senha>"
     exit 1
 fi
 
+# Atribuir os parâmetros a variáveis
+NOME_ALUNO=$1
+SENHA_COMPARTILHADA=$2
+
+# Verificar LabRole
+print_message "Verificando LabRole..."
+./scripts/validar_LabRole.sh
+check_status "LabRole validada com sucesso" "Falha na validação do LabRole"
+
 # Criar ambiente virtual se não existir
 if [ ! -d "venv" ]; then
-    echo "Criando ambiente virtual..."
+    print_message "Criando ambiente virtual..."
     python3 -m venv venv
 fi
 
 # Ativar ambiente virtual
-echo "Ativando ambiente virtual..."
+print_message "Ativando ambiente virtual..."
 source venv/bin/activate
 
 # Atualizar pip
-echo "Atualizando pip..."
+print_message "Atualizando pip..."
 pip install --upgrade pip
 
 # Instalar dependências
-echo "Instalando dependências..."
+print_message "Instalando dependências..."
 if [ -f "requirements.txt" ]; then
     pip install -r requirements.txt
 else
-    echo "Erro: Arquivo requirements.txt não encontrado"
+    print_error "Arquivo requirements.txt não encontrado"
+    exit 1
+fi
+
+# Verificar se o arquivo terraform.tfvars.example existe
+if [ ! -f "terraform/terraform.tfvars.example" ]; then
+    print_error "Arquivo terraform.tfvars.example não encontrado"
+    exit 1
+fi
+
+# Criar terraform.tfvars a partir do exemplo
+print_message "Criando arquivo de configuração do Terraform..."
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terraform.tfvars"
+
+# Atualizar as variáveis no terraform.tfvars
+print_message "Atualizando variáveis no arquivo de configuração..."
+sed -i "s/nome_aluno = \"aluno\"/nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
+sed -i "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMPARTILHADA\"/" terraform/terraform.tfvars
+check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
+
+# Verificar se o arquivo terraform.tfvars foi atualizado corretamente
+if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
+   grep -q "senha_compartilhada = \"$SENHA_COMPARTILHADA\"" terraform/terraform.tfvars; then
+    print_message "Configuração concluída com sucesso!"
+else
+    print_error "Falha ao verificar as atualizações no arquivo de configuração"
     exit 1
 fi
 
 # Tornar os scripts executáveis
-echo "Configurando permissões dos scripts..."
-chmod +x scripts/configurar_aluno.py
-chmod +x scripts/dns_list_zonas.py
+print_message "Configurando permissões dos scripts..."
 chmod +x scripts/validar_LabRole.sh
+chmod +x scripts/create_backend.sh
+chmod +x scripts/create_frontend.sh
+chmod +x scripts/update_frontend.sh
+chmod +x scripts/deploy.sh
+check_status "Permissões configuradas com sucesso" "Falha ao configurar permissões"
 
 # Listar zonas DNS disponíveis
-echo -e "\nVerificando zonas DNS disponíveis..."
+print_message "Verificando zonas DNS disponíveis..."
 echo "====================================="
 python3 scripts/dns_list_zonas.py
 
 # Verificar se a zona do aluno existe
-echo -e "\nVerificando zona DNS do aluno..."
+print_message "Verificando zona DNS do aluno..."
 echo "================================="
 ZONE_ID=$(python3 scripts/dns_list_zonas.py "${1}.lab.tonanuvem.com")
 if [ -z "$ZONE_ID" ]; then
-    echo "Erro: Zona DNS '${1}.lab.tonanuvem.com' não encontrada"
+    print_error "Zona DNS '${1}.lab.tonanuvem.com' não encontrada"
     exit 1
 fi
-echo "✓ Zona DNS encontrada: $ZONE_ID"
+print_message "✓ Zona DNS encontrada: $ZONE_ID"
 
 # Executar o script Python
-echo -e "\nExecutando configuração..."
+print_message "Executando configuração..."
 python3 scripts/configurar_aluno.py "$1" "$2"
 
 # Desativar ambiente virtual

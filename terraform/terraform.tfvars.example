@@ -6,6 +6,9 @@ ttl_dns    = 60
 nome_aluno   = "aluno"
 nome_dominio = "lab.tonanuvem.com"
 
+# Senha compartilhada para autenticação na API
+senha_compartilhada = "senha123"
+
 # Variáveis do módulo API Gateway
 api_gateway_nome_aluno   = "aluno"
 api_gateway_nome_dominio = "lab.tonanuvem.com"
