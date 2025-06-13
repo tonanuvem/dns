@@ -9,11 +9,11 @@ output "api_endpoint" {
 }
 
 output "domain_name" {
-  description = "Nome de domínio da API Gateway"
+  description = "Nome de domínio personalizado da API"
   value       = aws_apigatewayv2_domain_name.api.domain_name
 }
 
 output "domain_name_configuration" {
-  description = "Configuração do domínio da API Gateway"
+  description = "Configuração do domínio personalizado"
   value       = aws_apigatewayv2_domain_name.api.domain_name_configuration
 } 

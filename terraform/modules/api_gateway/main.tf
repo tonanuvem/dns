@@ -1,6 +1,6 @@
 # API Gateway
 resource "aws_apigatewayv2_api" "api" {
-  name          = "api-${var.nome_aluno}"
+  name          = "api-gerenciador-dns"
   protocol_type = "HTTP"
   cors_configuration {
     allow_origins = ["*"]
@@ -9,9 +9,7 @@ resource "aws_apigatewayv2_api" "api" {
     max_age      = 300
   }
 
-  tags = {
-    Name = "api-${var.nome_aluno}"
-  }
+  tags = var.tags
 }
 
 # Integração da API Gateway com a função Lambda
@@ -38,12 +36,10 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
   name   = "prod"
   auto_deploy = true
 
-  tags = {
-    Name = "api-${var.nome_aluno}-stage"
-  }
+  tags = var.tags
 }
 
-# Certificado ACM
+# Certificado ACM para a API
 resource "aws_acm_certificate" "api" {
   domain_name       = "api.${var.nome_aluno}.${var.nome_dominio}"
   validation_method = "DNS"
@@ -52,51 +48,31 @@ resource "aws_acm_certificate" "api" {
     create_before_destroy = true
   }
 
-  tags = {
+  tags = merge(var.tags, {
     Name = "api-${var.nome_aluno}-cert"
-  }
+  })
 }
 
 # Validação do certificado
 resource "aws_acm_certificate_validation" "api" {
   certificate_arn         = aws_acm_certificate.api.arn
-  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+  validation_record_fqdns = [for record in aws_acm_certificate.api.domain_validation_options : record.resource_record_name]
 }
 
-# Registro DNS para validação do certificado
-resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.api.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
-  ttl             = 60
-  type            = each.value.type
-  zone_id         = var.id_zona_hospedada
-}
-
-# Nome de domínio personalizado para a API
+# Domínio personalizado da API
 resource "aws_apigatewayv2_domain_name" "api" {
   domain_name = "api.${var.nome_aluno}.${var.nome_dominio}"
 
   domain_name_configuration {
-    certificate_arn = aws_acm_certificate_validation.api.certificate_arn
+    certificate_arn = aws_acm_certificate.api.arn
     endpoint_type   = "REGIONAL"
     security_policy = "TLS_1_2"
   }
 
-  tags = {
-    Name = "api-${var.nome_aluno}-domain"
-  }
+  tags = var.tags
 }
 
-# Mapeamento de domínio para a API
+# Mapeamento da API para o domínio personalizado
 resource "aws_apigatewayv2_api_mapping" "api" {
   api_id      = aws_apigatewayv2_api.api.id
   domain_name = aws_apigatewayv2_domain_name.api.domain_name

@@ -2,12 +2,10 @@
 resource "aws_s3_bucket" "frontend" {
   bucket = "frontend-${var.nome_aluno}.${var.nome_dominio}"
 
-  tags = {
-    Name = "frontend-${var.nome_aluno}"
-  }
+  tags = var.tags
 }
 
-# Configuração do bucket S3
+# Configuração do bucket como website
 resource "aws_s3_bucket_website_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -20,7 +18,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   }
 }
 
-# Política de bucket S3
+# Política de bucket para acesso público
 resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -38,7 +36,7 @@ resource "aws_s3_bucket_policy" "frontend" {
   })
 }
 
-# Certificado ACM
+# Certificado ACM para o frontend
 resource "aws_acm_certificate" "frontend" {
   domain_name       = "frontend-${var.nome_aluno}.${var.nome_dominio}"
   validation_method = "DNS"
@@ -47,42 +45,24 @@ resource "aws_acm_certificate" "frontend" {
     create_before_destroy = true
   }
 
-  tags = {
+  tags = merge(var.tags, {
     Name = "frontend-${var.nome_aluno}-cert"
-  }
+  })
 }
 
 # Validação do certificado
 resource "aws_acm_certificate_validation" "frontend" {
   certificate_arn         = aws_acm_certificate.frontend.arn
-  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+  validation_record_fqdns = [for record in aws_acm_certificate.frontend.domain_validation_options : record.resource_record_name]
 }
 
-# Registro DNS para validação do certificado
-resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.frontend.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
-  ttl             = 60
-  type            = each.value.type
-  zone_id         = var.id_zona_hospedada
-}
-
-# CloudFront distribution
+# Distribuição CloudFront
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
-  is_ipv6_enabled     = true
+  is_ipv6_enabled    = true
   default_root_object = "index.html"
-  price_class         = "PriceClass_100"
-  aliases             = ["frontend-${var.nome_aluno}.${var.nome_dominio}"]
+  price_class        = "PriceClass_100"
+  aliases            = ["frontend-${var.nome_aluno}.${var.nome_dominio}"]
 
   origin {
     domain_name = aws_s3_bucket_website_configuration.frontend.website_endpoint
@@ -118,20 +98,12 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.frontend.certificate_arn
+    acm_certificate_arn      = aws_acm_certificate.frontend.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
 
-  custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-
-  tags = {
-    Name = "frontend-${var.nome_aluno}-distribution"
-  }
+  tags = var.tags
 }
 
 # Registro DNS para o frontend
