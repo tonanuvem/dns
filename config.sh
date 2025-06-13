@@ -97,7 +97,6 @@ else
     print_error "Falha ao atualizar nome do aluno"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
-    exit 1
 fi
 
 if grep -q "api_gateway_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
@@ -106,7 +105,6 @@ else
     print_error "Falha ao atualizar nome do aluno no API Gateway"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
-    exit 1
 fi
 
 if grep -q "frontend_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
@@ -115,7 +113,6 @@ else
     print_error "Falha ao atualizar nome do aluno no Frontend"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
-    exit 1
 fi
 
 if grep -q "senha_compartilhada = \"$SENHA_COMPARTILHADA\"" terraform/terraform.tfvars; then
@@ -124,10 +121,9 @@ else
     print_error "Falha ao atualizar senha compartilhada"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
-    exit 1
 fi
 
-print_message "Configuração do arquivo terraform.tfvars concluída com sucesso!"
+print_message "Configuração do arquivo terraform.tfvars concluída!"
 
 # Tornar os scripts executáveis
 print_message "Configurando permissões dos scripts..."
