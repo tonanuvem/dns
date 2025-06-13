@@ -91,9 +91,16 @@ fi
 
 # Criar terraform.tfvars a partir do exemplo
 print_message "Criando arquivo de configuração do Terraform..."
-export NOME_ALUNO=$1
-export SENHA_COMPARTILHADA=$2
+# Exportar variáveis de ambiente para substituição
+export NOME_ALUNO="$NOME_ALUNO"
+export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
+
+# Criar terraform.tfvars a partir do exemplo, substituindo as variáveis de ambiente
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
+
+# Substituir manualmente as variáveis que não foram substituídas (caso envsubst não funcione para todas)
+sed -i "s|\${NOME_ALUNO}|$NOME_ALUNO|g" terraform/terraform.tfvars
+sed -i "s|\${SENHA_COMPARTILHADA}|$SENHA_COMPARTILHADA|g" terraform/terraform.tfvars
 
 # Inserir ou atualizar o account_id no terraform.tfvars
 if grep -q '^account_id' terraform/terraform.tfvars; then
