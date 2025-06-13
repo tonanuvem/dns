@@ -10,12 +10,12 @@ output "frontend_url" {
 
 output "lambda_dynamodb_table_name" {
   description = "Nome da tabela DynamoDB"
-  value       = module.lambda_api.dynamodb_table_name
+  value       = module.lambda_api.lambda_dynamodb_table_name
 }
 
 output "lambda_function_name" {
   description = "Nome da função Lambda"
-  value       = module.lambda_api.function_name
+  value       = module.lambda_api.lambda_function_name
 }
 
 output "api_gateway_domain_name" {
@@ -53,7 +53,7 @@ output "dns_zone_id" {
   value       = module.dns.dns_zone_id
 }
 
-output "dns_nameservers" {
-  description = "Nameservers da zona hospedada"
-  value       = module.dns.nameservers
-} 
+#output "dns_nameservers" {
+#  description = "Nameservers da zona hospedada"
+#  value       = module.dns.nameservers
+#} 
