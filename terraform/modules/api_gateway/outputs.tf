@@ -10,20 +10,20 @@ output "api_gateway_endpoint" {
 
 output "api_gateway_domain_name" {
   description = "Nome de domínio da API Gateway"
-  value       = aws_api_gateway_domain_name.api_gateway_domain.domain_name
+  value       = aws_apigatewayv2_domain_name.api.domain_name
 }
 
 output "api_gateway_domain_zone_id" {
   description = "ID da zona do domínio da API Gateway"
-  value       = aws_api_gateway_domain_name.api_gateway_domain.cloudfront_domain_name
+  value       = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
 }
 
 output "api_gateway_domain_configuration" {
   description = "Configuração do domínio da API Gateway"
-  value       = aws_api_gateway_domain_name.api_gateway_domain.domain_name_configuration
+  value       = aws_apigatewayv2_domain_name.api.domain_name_configuration
 }
 
 output "api_gateway_lambda_invoke_arn" {
   description = "ARN para invocar a função Lambda através da API Gateway"
-  value       = aws_api_gateway_integration.lambda.integration_uri
-} 
+  value       = aws_apigatewayv2_integration.lambda_integration.integration_uri
+}
