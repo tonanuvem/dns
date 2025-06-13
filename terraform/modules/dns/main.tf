@@ -3,7 +3,6 @@ resource "aws_route53_record" "api" {
   zone_id = var.dns_zone_id
   name    = "api.${var.dns_nome_aluno}.lab.tonanuvem.com"
   type    = "A"
-  ttl     = 60
 
   alias {
     name                   = var.dns_api_gateway_domain
@@ -17,7 +16,6 @@ resource "aws_route53_record" "frontend" {
   zone_id = var.dns_zone_id
   name    = "${var.dns_nome_aluno}.lab.tonanuvem.com"
   type    = "A"
-  ttl     = 60
 
   alias {
     name                   = var.dns_frontend_domain

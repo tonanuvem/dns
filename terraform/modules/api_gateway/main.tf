@@ -84,7 +84,6 @@ resource "aws_route53_record" "api" {
   name    = aws_apigatewayv2_domain_name.api.domain_name
   type    = "A"
   zone_id = var.api_gateway_id_zona_hospedada
-  ttl     = 60
 
   alias {
     name                   = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
