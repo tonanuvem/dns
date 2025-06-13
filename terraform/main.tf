@@ -161,20 +161,3 @@ resource "aws_lambda_permission" "apigw" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
-# Variáveis
-variable "nome_aluno" {
-  description = "Nome do aluno para prefixo dos recursos"
-  type        = string
-}
-
-variable "nome_dominio" {
-  description = "Nome do domínio base para os recursos"
-  type        = string
-  default     = "dns.lab"
-}
-
-variable "tags" {
-  description = "Tags padrão para todos os recursos"
-  type        = map(string)
-  default     = {}
-} 
