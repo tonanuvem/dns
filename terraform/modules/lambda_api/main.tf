@@ -11,9 +11,9 @@ resource "aws_dynamodb_table" "registros_dns" {
     type = "S"
   }
 
-  tags = {
+  tags = merge(var.lambda_tags, {
     Name = "registros-dns"
-  }
+  })
 
   lifecycle {
     prevent_destroy = true
@@ -43,9 +43,9 @@ resource "aws_lambda_function" "gerenciador_dns" {
     }
   }
 
-  tags = {
+  tags = merge(var.lambda_tags, {
     Name = "gerenciador-dns"
-  }
+  })
 }
 
 # Obter o ID da conta atual
@@ -62,9 +62,9 @@ resource "aws_apigatewayv2_api" "api" {
     max_age      = 300
   }
 
-  tags = {
+  tags = merge(var.lambda_tags, {
     Name = "api-gerenciador-dns"
-  }
+  })
 }
 
 # Integração da API Gateway com a função Lambda
@@ -91,9 +91,9 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
   name   = "prod"
   auto_deploy = true
 
-  tags = {
+  tags = merge(var.lambda_tags, {
     Name = "api-gerenciador-dns-stage"
-  }
+  })
 }
 
 # Permissão para a API Gateway invocar a função Lambda

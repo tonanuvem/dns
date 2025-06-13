@@ -9,7 +9,7 @@ variable "frontend_nome_dominio" {
   default     = "dns.lab"
 }
 
-variable "id_zona_hospedada" {
+variable "frontend_id_zona_hospedada" {
   description = "ID da zona hospedada no Route 53"
   type        = string
 }

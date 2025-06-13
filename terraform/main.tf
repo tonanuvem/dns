@@ -21,7 +21,25 @@ data "aws_route53_zone" "selecionada" {
 # Data source para obter o ID da conta atual
 data "aws_caller_identity" "current" {}
 
-# Módulo da API Gateway
+# =============================================
+# Fluxo 1: Lambda API (Base da Infraestrutura)
+# =============================================
+# O módulo Lambda API é a base da infraestrutura, fornecendo:
+# - Função Lambda para gerenciamento DNS
+# - Tabela DynamoDB para armazenamento dos registros
+# - ARN da função para integração com API Gateway
+module "lambda_api" {
+  source = "./modules/lambda_api"
+  lambda_tags = var.tags
+}
+
+# =============================================
+# Fluxo 2: API Gateway (Depende do Lambda API)
+# =============================================
+# O módulo API Gateway depende do Lambda API para:
+# - Integração com a função Lambda (lambda_invoke_arn)
+# - Configuração do endpoint HTTP
+# - Configuração do domínio personalizado
 module "api_gateway" {
   source = "./modules/api_gateway"
 
@@ -31,7 +49,13 @@ module "api_gateway" {
   api_gateway_tags             = var.tags
 }
 
-# Módulo do Frontend
+# =============================================
+# Fluxo 3: Frontend (Independente)
+# =============================================
+# O módulo Frontend é independente e fornece:
+# - Bucket S3 para hospedagem estática
+# - Distribuição CloudFront para CDN
+# - Certificado SSL para HTTPS
 module "frontend" {
   source = "./modules/frontend"
 
@@ -40,25 +64,33 @@ module "frontend" {
   frontend_tags         = var.tags
 }
 
-# Módulo da função Lambda
-module "lambda_api" {
-  source = "./modules/lambda_api"
-
-  tags = var.tags
-}
-
-# Módulo para criar os registros DNS
+# =============================================
+# Fluxo 4: DNS (Depende de API Gateway e Frontend)
+# =============================================
+# O módulo DNS depende de outros módulos para:
+# - API Gateway: Criar registro DNS para a API
+# - Frontend: Criar registro DNS para o frontend
+# - Zona hospedada: Criar zona DNS para o aluno
 module "dns" {
   source = "./modules/dns"
 
   nome_aluno = var.nome_aluno
   zone_id = data.aws_route53_zone.selecionada.zone_id
+  
+  # Dependências do API Gateway
   api_gateway_domain = module.api_gateway.api_gateway_domain_name
   api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_configuration[0].hosted_zone_id
+  
+  # Dependências do Frontend
   frontend_domain = module.frontend.frontend_cloudfront_domain
   frontend_domain_zone_id = module.frontend.frontend_cloudfront_zone_id
+  
   tags = var.tags
 }
+
+# =============================================
+# Recursos Adicionais
+# =============================================
 
 # Criar zona hospedada para o aluno
 resource "aws_route53_zone" "zona_aluno" {
