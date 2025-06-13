@@ -46,8 +46,8 @@ module "api_gateway" {
   api_gateway_lambda_invoke_arn = module.lambda_api.lambda_invoke_arn
   api_gateway_nome_aluno        = var.nome_aluno
   api_gateway_nome_dominio      = var.nome_dominio
-  api_gateway_tags             = var.tags
-  = data.aws_route53_zone.selecionada.zone_id
+  api_gateway_tags              = var.tags
+  api_gateway_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
 }
 
 # =============================================
