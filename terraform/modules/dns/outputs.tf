@@ -10,5 +10,5 @@ output "dns_frontend_record_name" {
 
 output "dns_zone_id" {
   description = "ID da zona hospedada"
-  value       = var.zone_id
+  value       = var.dns_zone_id
 } 
