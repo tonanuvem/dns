@@ -17,7 +17,7 @@ check_status() {
         print_message "✓ $1" "$GREEN"
     else
         print_message "✗ $2" "$RED"
-        return 1
+        exit 1
     fi
 }
 
@@ -39,27 +39,26 @@ fi
 # Verificar se a LabRole existe
 print_message "Verificando se a LabRole existe..." "$YELLOW"
 if ! aws iam get-role --role-name LabRole &> /dev/null; then
-    print_message "Aviso: LabRole não encontrada" "$RED"
-    print_message "O deploy pode falhar se a LabRole não existir" "$YELLOW"
-else
-    print_message "LabRole encontrada" "$GREEN"
+    print_message "Erro: LabRole não encontrada" "$RED"
+    exit 1
 fi
+print_message "LabRole encontrada" "$GREEN"
 
 # Listar políticas gerenciadas
-print_message "\nPolíticas gerenciadas:" "$YELLOW"
+print_message "\nPolíticas gerenciadas da LabRole:" "$YELLOW"
 aws iam list-attached-role-policies --role-name LabRole --query 'AttachedPolicies[*].PolicyName' --output text
-check_status "Políticas gerenciadas listadas" "Falha ao listar políticas gerenciadas"
+check_status "Políticas gerenciadas listadas com sucesso" "Erro ao listar políticas gerenciadas"
 
 # Listar políticas inline
-print_message "\nPolíticas inline:" "$YELLOW"
+print_message "\nPolíticas inline da LabRole:" "$YELLOW"
 aws iam list-role-policies --role-name LabRole --query 'PolicyNames' --output text
-check_status "Políticas inline listadas" "Falha ao listar políticas inline"
+check_status "Políticas inline listadas com sucesso" "Erro ao listar políticas inline"
 
 # Verificar permissões necessárias
 print_message "\nVerificando permissões necessárias..." "$YELLOW"
 
 # Lista de permissões necessárias
-PERMISSIONS=(
+PERMISSOES_NECESSARIAS=(
     "dynamodb:GetItem"
     "dynamodb:PutItem"
     "dynamodb:UpdateItem"
@@ -76,22 +75,19 @@ PERMISSIONS=(
 )
 
 # Verificar cada permissão
-has_errors=false
-for permission in "${PERMISSIONS[@]}"; do
-    if ! aws iam simulate-principal-policy --policy-source-arn "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/LabRole" --action-names "$permission" --query 'EvaluationResults[0].EvalDecision' --output text | grep -q "allowed"; then
-        print_message "Aviso: Permissão $permission não encontrada" "$RED"
-        has_errors=true
+''' 
+for permissao in "${PERMISSOES_NECESSARIAS[@]}"; do
+    print_message "Verificando permissão: $permissao" "$YELLOW"
+    if ! aws iam simulate-principal-policy --policy-source-arn "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/LabRole" --action-names "$permissao" --resource-arns "*" --query 'EvaluationResults[0].EvalDecision' --output text | grep -q "allowed"; then
+        print_message "Aviso: Permissão $permissao não encontrada" "$RED"
     else
-        print_message "✓ Permissão $permission encontrada" "$GREEN"
+        print_message "Permissão $permissao encontrada" "$GREEN"
     fi
 done
 
-# Informar sobre permissões faltantes
-if [ "$has_errors" = true ]; then
-    print_message "\nAviso: Algumas permissões necessárias não foram encontradas na LabRole" "$RED"
-    print_message "O deploy pode falhar se as permissões necessárias não estiverem configuradas" "$YELLOW"
-else
-    print_message "\nTodas as permissões necessárias foram encontradas!" "$GREEN"
-fi
 
-print_message "\nValidação concluída!" "$GREEN" 
+print_message "\nValidação concluída!" "$GREEN"
+print_message "\nPróximos passos:" "$YELLOW"
+print_message "1. Execute ./config.sh para configurar o ambiente" "$YELLOW"
+print_message "2. Execute ./criar.sh para criar os builds" "$YELLOW"
+print_message "3. Execute ./scripts/deploy.sh para fazer o deploy" "$YELLOW" 

@@ -1,13 +1,32 @@
+# Configurações gerais
 aws_region = "us-east-1"
-nome_aluno = "joao"  # Substitua pelo nome do aluno
-nome_dominio = "lab.tonanuvem.com"
-senha_compartilhada = "sua_senha_segura_aqui"
-ttl_dns = 60
+ttl_dns    = 60
 
-# Tags padrão
+# Nome do aluno e domínio
+nome_aluno   = "aluno"
+nome_dominio = "lab.tonanuvem.com"
+
+# Variáveis do módulo API Gateway
+api_gateway_nome_aluno   = "aluno"
+api_gateway_nome_dominio = "lab.tonanuvem.com"
+api_gateway_tags = {
+  Projeto    = "Gerenciador DNS"
+  Ambiente   = "laboratorio"
+  Gerenciado = "terraform"
+}
+
+# Variáveis do módulo Frontend
+frontend_nome_aluno   = "aluno"
+frontend_nome_dominio = "lab.tonanuvem.com"
+frontend_tags = {
+  Projeto    = "Gerenciador DNS"
+  Ambiente   = "laboratorio"
+  Gerenciado = "terraform"
+}
+
+# Tags padrão para todos os recursos
 tags = {
   Projeto    = "Gerenciador DNS"
-  Aluno      = "joao"
   Ambiente   = "laboratorio"
   Gerenciado = "terraform"
 }
