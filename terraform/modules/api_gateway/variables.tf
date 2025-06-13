@@ -14,17 +14,17 @@ variable "api_gateway_nome_dominio" {
   default     = "dns.lab"
 }
 
-variable "lambda_function_arn" {
+variable "api_gateway_lambda_function_arn" {
   description = "ARN da função Lambda"
   type        = string
 }
 
-variable "lambda_function_name" {
+variable "api_gateway_lambda_function_name" {
   description = "Nome da função Lambda"
   type        = string
 }
 
-variable "zone_id" {
+variable "api_gateway_zone_id" {
   description = "ID da zona hospedada no Route 53"
   type        = string
 }

@@ -1,9 +1,9 @@
-variable "nome_aluno" {
+variable "dns_nome_aluno" {
   description = "Nome do aluno para prefixar os recursos"
   type        = string
 }
 
-variable "zone_id" {
+variable "dns_zone_id" {
   description = "ID da zona hospedada no Route 53"
   type        = string
 }
@@ -18,17 +18,17 @@ variable "api_gateway_domain_zone_id" {
   type        = string
 }
 
-variable "frontend_domain" {
+variable "dns_domain" {
   description = "Nome de domínio do frontend"
   type        = string
 }
 
-variable "frontend_domain_zone_id" {
+variable "dns_domain_zone_id" {
   description = "ID da zona do domínio do frontend"
   type        = string
 }
 
-variable "tags" {
+variable "dns_tags" {
   description = "Tags para os recursos"
   type        = map(string)
   default     = {}
