@@ -31,22 +31,22 @@ if ! command -v aws &> /dev/null; then
 fi
 
 # Verificar se as credenciais AWS estão configuradas
-print_message "Verificando credenciais AWS..." "$YELLOW"
-if ! aws sts get-caller-identity &> /dev/null; then
-    print_message "Credenciais AWS não configuradas ou inválidas." "$RED"
-    print_message "Por favor, configure suas credenciais AWS:" "$YELLOW"
-    aws configure
-    check_status "Credenciais AWS configuradas com sucesso" "Erro ao configurar credenciais AWS"
-fi
+#print_message "Verificando credenciais AWS..." "$YELLOW"
+#if ! aws sts get-caller-identity &> /dev/null; then
+#    print_message "Credenciais AWS não configuradas ou inválidas." "$RED"
+#    print_message "Por favor, configure suas credenciais AWS:" "$YELLOW"
+#    aws configure
+#    check_status "Credenciais AWS configuradas com sucesso" "Erro ao configurar credenciais AWS"
+#fi
 
 # Verificar se as variáveis de ambiente AWS estão configuradas
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
-    print_message "Configurando variáveis de ambiente AWS..." "$YELLOW"
-    export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
-    export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
-    export AWS_DEFAULT_REGION=$(aws configure get region)
-    check_status "Variáveis de ambiente AWS configuradas com sucesso" "Erro ao configurar variáveis de ambiente AWS"
-fi
+#if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
+#    print_message "Configurando variáveis de ambiente AWS..." "$YELLOW"
+#    export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
+#    export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
+#    export AWS_DEFAULT_REGION=$(aws configure get region)
+#    check_status "Variáveis de ambiente AWS configuradas com sucesso" "Erro ao configurar variáveis de ambiente AWS"
+#fi
 
 # Verificar se estamos no diretório correto
 if [ ! -f "$BASE_DIR/terraform/main.tf" ]; then
@@ -84,4 +84,4 @@ print_message "Aplicando mudanças..." "$YELLOW"
 terraform apply tfplan
 check_status "Mudanças aplicadas com sucesso" "Erro ao aplicar mudanças"
 
-print_message "Deploy concluído com sucesso!" "$GREEN" 
+print_message "Deploy concluído com sucesso!" "$GREEN"
