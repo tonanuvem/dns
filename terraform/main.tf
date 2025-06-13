@@ -44,7 +44,6 @@ module "api_gateway" {
   source = "./modules/api_gateway"
 
   api_gateway_lambda_invoke_arn = module.lambda_api.lambda_invoke_arn
-  api_gateway_lambda_function_arn = module.lambda_api.lambda_function_arn
   api_gateway_nome_aluno        = var.nome_aluno
   api_gateway_nome_dominio      = var.nome_dominio
   api_gateway_tags             = var.tags
