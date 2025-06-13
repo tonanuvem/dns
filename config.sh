@@ -87,16 +87,32 @@ print_message "Criando arquivo de configuração do Terraform..."
 export NOME_ALUNO="$NOME_ALUNO"
 export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
-check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
+check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terraform.tfvars"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
 print_message "Verificando atualizações no arquivo de configuração..."
-if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
-   grep -q "api_gateway_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
-   grep -q "frontend_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
-    print_message "✓ Nome do aluno atualizado com sucesso em todas as ocorrências"
+if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
+    print_message "✓ Nome do aluno atualizado com sucesso"
 else
-    print_error "Falha ao atualizar nome do aluno em todas as ocorrências"
+    print_error "Falha ao atualizar nome do aluno"
+    print_message "Conteúdo atual do arquivo terraform.tfvars:"
+    cat terraform/terraform.tfvars
+    exit 1
+fi
+
+if grep -q "api_gateway_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
+    print_message "✓ Nome do aluno no API Gateway atualizado com sucesso"
+else
+    print_error "Falha ao atualizar nome do aluno no API Gateway"
+    print_message "Conteúdo atual do arquivo terraform.tfvars:"
+    cat terraform/terraform.tfvars
+    exit 1
+fi
+
+if grep -q "frontend_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
+    print_message "✓ Nome do aluno no Frontend atualizado com sucesso"
+else
+    print_error "Falha ao atualizar nome do aluno no Frontend"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
     exit 1
