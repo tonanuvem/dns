@@ -18,6 +18,9 @@ data "aws_route53_zone" "selecionada" {
   zone_id = var.id_zona_hospedada
 }
 
+# Data source para obter o ID da conta atual
+data "aws_caller_identity" "current" {}
+
 # Módulo da API Gateway
 module "api_gateway" {
   source = "./modules/api_gateway"
@@ -93,7 +96,7 @@ resource "aws_dynamodb_table" "registros_dns" {
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = "../lambda/gerenciador_dns.zip"
   function_name    = "gerenciador-dns-${var.nome_aluno}"
-  role            = aws_iam_role.lambda_role.arn
+  role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
   handler         = "gerenciador_dns.lambda_handler"
   runtime         = "python3.9"
   timeout         = 30
@@ -156,69 +159,6 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_function.gerenciador_dns.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
-}
-
-# IAM Role para a Lambda
-resource "aws_iam_role" "lambda_role" {
-  name = "lambda_gerenciador_dns_role_${var.nome_aluno}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = merge(var.tags, {
-    Aluno = var.nome_aluno
-  })
-}
-
-# Política IAM para a Lambda
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_gerenciador_dns_policy_${var.nome_aluno}"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Scan",
-          "dynamodb:Query",
-          "dynamodb:UpdateItem"
-        ]
-        Resource = aws_dynamodb_table.registros_dns.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "route53:ChangeResourceRecordSets",
-          "route53:ListResourceRecordSets"
-        ]
-        Resource = "arn:aws:route53:::hostedzone/${aws_route53_zone.zona_aluno.zone_id}"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
-  })
 }
 
 # Outputs
