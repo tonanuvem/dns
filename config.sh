@@ -82,11 +82,25 @@ if [ ! -f "terraform/terraform.tfvars.example" ]; then
     exit 1
 fi
 
+# Obter o account_id da AWS
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
+if [ -z "$ACCOUNT_ID" ]; then
+    print_error "Não foi possível obter o account_id da AWS. Verifique suas credenciais."
+    exit 1
+fi
+
 # Criar terraform.tfvars a partir do exemplo
 print_message "Criando arquivo de configuração do Terraform..."
 export NOME_ALUNO=$1
 export SENHA_COMPARTILHADA=$2
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
+
+# Inserir ou atualizar o account_id no terraform.tfvars
+if grep -q '^account_id' terraform/terraform.tfvars; then
+    sed -i "s/^account_id.*/account_id = \"$ACCOUNT_ID\"/" terraform/terraform.tfvars
+else
+    echo "account_id = \"$ACCOUNT_ID\"" >> terraform/terraform.tfvars
+fi
 check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terraform.tfvars"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente

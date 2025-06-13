@@ -18,9 +18,6 @@ data "aws_route53_zone" "selecionada" {
   zone_id = var.id_zona_hospedada
 }
 
-# Data source para obter o ID da conta atual
-data "aws_caller_identity" "current" {}
-
 # =============================================
 # Fluxo 1: Lambda API (Base da Infraestrutura)
 # =============================================
@@ -129,11 +126,11 @@ resource "aws_dynamodb_table" "registros_dns" {
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = "../lambda/gerenciador_dns.zip"
   function_name    = "gerenciador-dns-${var.nome_aluno}"
-  role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
-  handler         = "gerenciador_dns.lambda_handler"
-  runtime         = "python3.9"
-  timeout         = 30
-  memory_size     = 128
+  role             = "arn:aws:iam::${var.account_id}:role/LabRole"
+  handler          = "gerenciador_dns.lambda_handler"
+  runtime          = "python3.9"
+  timeout          = 30
+  memory_size      = 128
 
   environment {
     variables = {
