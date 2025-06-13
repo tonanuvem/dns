@@ -21,6 +21,28 @@ check_status() {
     fi
 }
 
+# Verificar argumentos
+if [ "$#" -ne 2 ]; then
+    print_message "Erro: Número incorreto de argumentos" "$RED"
+    print_message "Uso: $0 <nome_aluno> <nome_dominio>" "$YELLOW"
+    print_message "Exemplo: $0 aluno1 dns.lab" "$YELLOW"
+    exit 1
+fi
+
+# Validar nome do aluno (apenas letras, números e hífen)
+if ! [[ "$1" =~ ^[a-zA-Z0-9-]+$ ]]; then
+    print_message "Erro: Nome do aluno inválido" "$RED"
+    print_message "Use apenas letras, números e hífen" "$YELLOW"
+    exit 1
+fi
+
+# Validar nome do domínio
+if ! [[ "$2" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+    print_message "Erro: Nome do domínio inválido" "$RED"
+    print_message "Use um formato válido de domínio (ex: dns.lab)" "$YELLOW"
+    exit 1
+fi
+
 # Verificar se o script está sendo executado no diretório correto
 if [ ! -f "terraform/main.tf" ]; then
     print_message "Erro: Execute este script a partir do diretório raiz do projeto" "$RED"
