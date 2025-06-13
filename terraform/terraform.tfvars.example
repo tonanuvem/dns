@@ -3,14 +3,14 @@ aws_region = "us-east-1"
 ttl_dns    = 60
 
 # Nome do aluno e domínio
-nome_aluno   = "aluno"
+nome_aluno   = "nome_aluno"
 nome_dominio = "lab.tonanuvem.com"
 
 # Senha compartilhada para autenticação na API
 senha_compartilhada = "senha123"
 
 # Variáveis do módulo API Gateway
-api_gateway_nome_aluno   = "aluno"
+api_gateway_nome_aluno   = "nome_aluno"
 api_gateway_nome_dominio = "lab.tonanuvem.com"
 api_gateway_tags = {
   Projeto    = "Gerenciador DNS"
@@ -19,7 +19,7 @@ api_gateway_tags = {
 }
 
 # Variáveis do módulo Frontend
-frontend_nome_aluno   = "aluno"
+frontend_nome_aluno   = "nome_aluno"
 frontend_nome_dominio = "lab.tonanuvem.com"
 frontend_tags = {
   Projeto    = "Gerenciador DNS"

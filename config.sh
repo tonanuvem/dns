@@ -89,7 +89,7 @@ check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terra
 
 # Atualizar as variáveis no terraform.tfvars
 print_message "Atualizando variáveis no arquivo de configuração..."
-sed -i "s/nome_aluno = \"aluno\"/nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
+sed -i "s/nome_aluno = \"nome_aluno\"/nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
 sed -i "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMPARTILHADA\"/" terraform/terraform.tfvars
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
