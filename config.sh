@@ -99,6 +99,8 @@ if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
     print_message "✓ Nome do aluno atualizado com sucesso"
 else
     print_error "Falha ao atualizar nome do aluno"
+    print_message "Conteúdo atual do arquivo terraform.tfvars:"
+    cat terraform/terraform.tfvars
     exit 1
 fi
 
@@ -106,6 +108,8 @@ if grep -q "senha_compartilhada = \"$SENHA_COMPARTILHADA\"" terraform/terraform.
     print_message "✓ Senha compartilhada atualizada com sucesso"
 else
     print_error "Falha ao atualizar senha compartilhada"
+    print_message "Conteúdo atual do arquivo terraform.tfvars:"
+    cat terraform/terraform.tfvars
     exit 1
 fi
 
