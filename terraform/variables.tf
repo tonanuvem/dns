@@ -36,38 +36,4 @@ variable "tags" {
   description = "Tags padrão para todos os recursos"
   type        = map(string)
   default     = {}
-}
-
-# Variáveis para o módulo API Gateway
-variable "api_gateway_nome_aluno" {
-  description = "Nome do aluno para o módulo API Gateway"
-  type        = string
-}
-
-variable "api_gateway_nome_dominio" {
-  description = "Nome do domínio para o módulo API Gateway"
-  type        = string
-}
-
-variable "api_gateway_tags" {
-  description = "Tags para o módulo API Gateway"
-  type        = map(string)
-  default     = {}
-}
-
-# Variáveis para o módulo Frontend
-variable "frontend_nome_aluno" {
-  description = "Nome do aluno para o módulo Frontend"
-  type        = string
-}
-
-variable "frontend_nome_dominio" {
-  description = "Nome do domínio para o módulo Frontend"
-  type        = string
-}
-
-variable "frontend_tags" {
-  description = "Tags para o módulo Frontend"
-  type        = map(string)
-  default     = {}
 } 
