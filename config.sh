@@ -84,8 +84,8 @@ fi
 
 # Criar terraform.tfvars a partir do exemplo
 print_message "Criando arquivo de configuração do Terraform..."
-export NOME_ALUNO="$NOME_ALUNO"
-export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
+export NOME_ALUNO="$1"
+export SENHA_COMPARTILHADA="$2"
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
 check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terraform.tfvars"
 
