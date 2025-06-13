@@ -90,31 +90,31 @@ update_module_variables() {
     local prefix=$2
     local file="terraform/modules/${module}/variables.tf"
     
+    # Criar arquivo de variáveis se não existir
+    if [ ! -f "$file" ]; then
+        mkdir -p "terraform/modules/${module}"
+        touch "$file"
+    fi
+    
     # Atualizar nome_aluno
-    sed -i '' "s/variable \"${prefix}_nome_aluno\"/variable \"${prefix}_nome_aluno\" {/g" "$file"
-    sed -i '' "/variable \"${prefix}_nome_aluno\"/,/}/c\\
-variable \"${prefix}_nome_aluno\" {\\
-  description = \"Nome do aluno para prefixo dos recursos\"\\
-  type        = string\\
-}" "$file"
-    
-    # Atualizar nome_dominio
-    sed -i '' "s/variable \"${prefix}_nome_dominio\"/variable \"${prefix}_nome_dominio\" {/g" "$file"
-    sed -i '' "/variable \"${prefix}_nome_dominio\"/,/}/c\\
-variable \"${prefix}_nome_dominio\" {\\
-  description = \"Nome do domínio base para os recursos\"\\
-  type        = string\\
-  default     = \"dns.lab\"\\
-}" "$file"
-    
-    # Atualizar tags
-    sed -i '' "s/variable \"${prefix}_tags\"/variable \"${prefix}_tags\" {/g" "$file"
-    sed -i '' "/variable \"${prefix}_tags\"/,/}/c\\
-variable \"${prefix}_tags\" {\\
-  description = \"Tags padrão para todos os recursos\"\\
-  type        = map(string)\\
-  default     = {}\\
-}" "$file"
+    cat > "$file" << EOF
+variable "${prefix}_nome_aluno" {
+  description = "Nome do aluno para prefixo dos recursos"
+  type        = string
+}
+
+variable "${prefix}_nome_dominio" {
+  description = "Nome do domínio base para os recursos"
+  type        = string
+  default     = "dns.lab"
+}
+
+variable "${prefix}_tags" {
+  description = "Tags padrão para todos os recursos"
+  type        = map(string)
+  default     = {}
+}
+EOF
 }
 
 # Atualizar variáveis em cada módulo
@@ -131,15 +131,49 @@ print_message "Atualizando arquivo terraform.tfvars..." "$YELLOW"
 update_main_variables() {
     local file="terraform/terraform.tfvars"
     
-    # Atualizar variáveis globais
-    sed -i '' "s/nome_aluno = .*/nome_aluno = \"$1\"/" "$file"
-    sed -i '' "s/nome_dominio = .*/nome_dominio = \"$2\"/" "$file"
+    # Criar arquivo se não existir
+    if [ ! -f "$file" ]; then
+        touch "$file"
+    fi
     
-    # Atualizar variáveis dos módulos
-    sed -i '' "s/api_gateway_nome_aluno = .*/api_gateway_nome_aluno = \"$1\"/" "$file"
-    sed -i '' "s/api_gateway_nome_dominio = .*/api_gateway_nome_dominio = \"$2\"/" "$file"
-    sed -i '' "s/frontend_nome_aluno = .*/frontend_nome_aluno = \"$1\"/" "$file"
-    sed -i '' "s/frontend_nome_dominio = .*/frontend_nome_dominio = \"$2\"/" "$file"
+    # Atualizar variáveis
+    cat > "$file" << EOF
+# Variáveis globais
+nome_aluno = "$1"
+nome_dominio = "$2"
+
+# Tags padrão para todos os recursos
+tags = {
+  Name = "gerenciador-dns"
+  Environment = "lab"
+  Project = "dns-manager"
+}
+
+# Variáveis do módulo API Gateway
+api_gateway_nome_aluno = "$1"
+api_gateway_nome_dominio = "$2"
+api_gateway_tags = {
+  Name = "api-gerenciador-dns"
+  Environment = "lab"
+  Project = "dns-manager"
+}
+
+# Variáveis do módulo Frontend
+frontend_nome_aluno = "$1"
+frontend_nome_dominio = "$2"
+frontend_tags = {
+  Name = "frontend-gerenciador-dns"
+  Environment = "lab"
+  Project = "dns-manager"
+}
+
+# Variáveis do módulo Lambda API
+lambda_api_tags = {
+  Name = "lambda-gerenciador-dns"
+  Environment = "lab"
+  Project = "dns-manager"
+}
+EOF
 }
 
 # Atualizar variáveis com os valores fornecidos
