@@ -42,8 +42,8 @@ else
 fi
 
 # Testes temporários
-export NOME_ALUNO=$1
-export SENHA_COMPARTILHADA=$2
+export NOME_ALUNO="aluno"
+export SENHA_COMPARTILHADA="tonanuvem"
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
 
 # Atualizar o arquivo terraform.tfvars com o ID da zona e nome do domínio
