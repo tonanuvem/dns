@@ -74,18 +74,18 @@ module "frontend" {
 module "dns" {
   source = "./modules/dns"
 
-  nome_aluno = var.nome_aluno
-  zone_id = data.aws_route53_zone.selecionada.zone_id
+  dns_nome_aluno = var.nome_aluno
+  dns_zone_id = data.aws_route53_zone.selecionada.zone_id
   
   # Dependências do API Gateway
-  api_gateway_domain = module.api_gateway.api_gateway_domain_name
-  api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_configuration[0].hosted_zone_id
+  dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
+  dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_configuration[0].hosted_zone_id
   
   # Dependências do Frontend
-  frontend_domain = module.frontend.frontend_cloudfront_domain
-  frontend_domain_zone_id = module.frontend.frontend_cloudfront_zone_id
+  dns_frontend_domain = module.frontend.frontend_cloudfront_domain
+  dns_frontend_domain_zone_id = module.frontend.frontend_cloudfront_zone_id
   
-  tags = var.tags
+  dns_tags = var.tags
 }
 
 # =============================================

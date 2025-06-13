@@ -1,25 +1,29 @@
 # Registro DNS para a API
 resource "aws_route53_record" "api" {
-  zone_id = var.zone_id
-  name    = "api.${var.nome_aluno}.lab.tonanuvem.com"
+  zone_id = var.dns_zone_id
+  name    = "api.${var.dns_nome_aluno}.lab.tonanuvem.com"
   type    = "A"
 
   alias {
-    name                   = var.api_gateway_domain
-    zone_id                = var.api_gateway_domain_zone_id
+    name                   = var.dns_api_gateway_domain
+    zone_id                = var.dns_api_gateway_domain_zone_id
     evaluate_target_health = false
   }
+
+  tags = var.dns_tags
 }
 
 # Registro DNS para o frontend
 resource "aws_route53_record" "frontend" {
-  zone_id = var.zone_id
-  name    = "${var.nome_aluno}.lab.tonanuvem.com"
+  zone_id = var.dns_zone_id
+  name    = "${var.dns_nome_aluno}.lab.tonanuvem.com"
   type    = "A"
 
   alias {
-    name                   = var.frontend_domain
-    zone_id                = var.frontend_domain_zone_id
+    name                   = var.dns_frontend_domain
+    zone_id                = var.dns_frontend_domain_zone_id
     evaluate_target_health = false
   }
+
+  tags = var.dns_tags
 } 

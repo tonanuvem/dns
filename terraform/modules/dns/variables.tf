@@ -8,28 +8,28 @@ variable "dns_zone_id" {
   type        = string
 }
 
-variable "api_gateway_domain" {
+variable "dns_api_gateway_domain" {
   description = "Nome de domínio da API Gateway"
   type        = string
 }
 
-variable "api_gateway_domain_zone_id" {
+variable "dns_api_gateway_domain_zone_id" {
   description = "ID da zona do domínio da API Gateway"
   type        = string
 }
 
-variable "dns_domain" {
+variable "dns_frontend_domain" {
   description = "Nome de domínio do frontend"
   type        = string
 }
 
-variable "dns_domain_zone_id" {
+variable "dns_frontend_domain_zone_id" {
   description = "ID da zona do domínio do frontend"
   type        = string
 }
 
 variable "dns_tags" {
-  description = "Tags para os recursos"
+  description = "Tags padrão para todos os recursos do módulo DNS"
   type        = map(string)
   default     = {}
 } 
