@@ -170,6 +170,14 @@ if [ -z "$ZONE_ID" ]; then
 fi
 print_message "✓ Zona DNS encontrada: $ZONE_ID"
 
+# Substituir ou inserir o id_zona_hospedada no terraform.tfvars
+if grep -q '^id_zona_hospedada' terraform/terraform.tfvars; then
+    sed -i "s/^id_zona_hospedada.*/id_zona_hospedada = \"$ZONE_ID\"/" terraform/terraform.tfvars
+else
+    echo "id_zona_hospedada = \"$ZONE_ID\"" >> terraform/terraform.tfvars
+fi
+check_status "ID da zona hospedada atualizado com sucesso" "Falha ao atualizar ID da zona hospedada"
+
 # Executar o script Python
 #print_message "Executando configuração..."
 #python3 scripts/configurar_aluno.py "$1" "$2"
