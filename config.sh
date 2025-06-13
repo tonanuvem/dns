@@ -48,34 +48,6 @@ fi
 NOME_ALUNO=$1
 SENHA_COMPARTILHADA=$2
 
-# Verificar LabRole
-print_message "Verificando LabRole..."
-./scripts/validar_LabRole.sh
-check_status "LabRole validada com sucesso" "Falha na validação do LabRole"
-
-# Criar ambiente virtual se não existir
-if [ ! -d "venv" ]; then
-    print_message "Criando ambiente virtual..."
-    python3 -m venv venv
-fi
-
-# Ativar ambiente virtual
-print_message "Ativando ambiente virtual..."
-source venv/bin/activate
-
-# Atualizar pip
-print_message "Atualizando pip..."
-pip install --upgrade pip
-
-# Instalar dependências
-print_message "Instalando dependências..."
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
-else
-    print_error "Arquivo requirements.txt não encontrado"
-    exit 1
-fi
-
 # Verificar se o arquivo terraform.tfvars.example existe
 if [ ! -f "terraform/terraform.tfvars.example" ]; then
     print_error "Arquivo terraform.tfvars.example não encontrado"
@@ -145,6 +117,34 @@ print_message "Verificando atualizações no arquivo de configuração..."
 # fi
 
 print_message "Configuração do arquivo terraform.tfvars concluída!"
+
+# Criar ambiente virtual se não existir
+if [ ! -d "venv" ]; then
+    print_message "Criando ambiente virtual..."
+    python3 -m venv venv
+fi
+
+# Ativar ambiente virtual
+print_message "Ativando ambiente virtual..."
+source venv/bin/activate
+
+# Atualizar pip
+print_message "Atualizando pip..."
+pip install --upgrade pip
+
+# Instalar dependências
+print_message "Instalando dependências..."
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+else
+    print_error "Arquivo requirements.txt não encontrado"
+    exit 1
+fi
+
+# Verificar LabRole
+print_message "Verificando LabRole..."
+./scripts/validar_LabRole.sh
+check_status "LabRole validada com sucesso" "Falha na validação do LabRole"
 
 # Tornar os scripts executáveis
 print_message "Configurando permissões dos scripts..."
