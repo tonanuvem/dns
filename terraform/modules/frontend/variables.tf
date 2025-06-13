@@ -1,2 +1,21 @@
-# Todas as variáveis são definidas no terraform.tfvars.example
-# e substituídas pelo script config.sh 
+variable "frontend_nome_aluno" {
+  description = "Nome do aluno para prefixo dos recursos"
+  type        = string
+}
+
+variable "frontend_nome_dominio" {
+  description = "Nome do domínio base para os recursos"
+  type        = string
+  default     = "dns.lab"
+}
+
+variable "id_zona_hospedada" {
+  description = "ID da zona hospedada no Route 53"
+  type        = string
+}
+
+variable "frontend_tags" {
+  description = "Tags padrão para todos os recursos"
+  type        = map(string)
+  default     = {}
+} 
