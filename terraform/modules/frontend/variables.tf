@@ -18,4 +18,10 @@ variable "frontend_tags" {
   description = "Tags padrão para todos os recursos do módulo Frontend"
   type        = map(string)
   default     = {}
-} 
+}
+
+variable "enable_https" {
+  description = "Habilita HTTPS no frontend (CloudFront + ACM)"
+  type        = bool
+  default     = false
+}
