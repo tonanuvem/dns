@@ -110,7 +110,7 @@ resource "aws_cloudfront_distribution" "frontend" {
 resource "aws_route53_record" "frontend" {
   name    = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
   type    = "A"
-  zone_id = var.id_zona_hospedada
+  zone_id = var.frontend_id_zona_hospedada
 
   alias {
     name                   = aws_cloudfront_distribution.frontend.domain_name

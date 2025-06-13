@@ -61,7 +61,8 @@ module "frontend" {
 
   frontend_nome_aluno   = var.nome_aluno
   frontend_nome_dominio = var.nome_dominio
-  frontend_tags         = var.tags
+  frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
+  frontend_tags = var.tags
 }
 
 # =============================================
