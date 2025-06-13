@@ -4,12 +4,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "nome_aluno" {
+variable "dns_nome_aluno" {
   description = "Nome do aluno para prefixo dos recursos"
   type        = string
 }
 
-variable "nome_dominio" {
+variable "dns_nome_dominio" {
   description = "Nome do domínio base para os recursos"
   type        = string
   default     = "dns.lab"
