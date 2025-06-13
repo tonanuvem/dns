@@ -1,7 +1,7 @@
 # Registro DNS para a API
 resource "aws_route53_record" "api" {
   zone_id = var.dns_zone_id
-  name    = "api.${var.dns_nome_aluno}.lab.tonanuvem.com"
+  name    = "api"
   type    = "A"
 
   alias {
@@ -14,7 +14,7 @@ resource "aws_route53_record" "api" {
 # Registro DNS para o frontend
 resource "aws_route53_record" "frontend" {
   zone_id = var.dns_zone_id
-  name    = "${var.dns_nome_aluno}.lab.tonanuvem.com"
+  name    = "${var.dns_nome_aluno}"
   type    = "A"
 
   alias {
