@@ -35,4 +35,7 @@ tags = {
 }
 
 # Configurações do Route 53
-id_zona_hospedada = ""  # Será preenchido automaticamente pelo script de configuração 
+id_zona_hospedada = ""  # Será preenchido automaticamente pelo script de configuração
+
+# ID da conta AWS
+account_id = ""
