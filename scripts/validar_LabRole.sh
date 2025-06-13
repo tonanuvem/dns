@@ -84,7 +84,7 @@ for permissao in "${PERMISSOES_NECESSARIAS[@]}"; do
         print_message "Permissão $permissao encontrada" "$GREEN"
     fi
 done
-
+'''
 
 print_message "\nValidação concluída!" "$GREEN"
 print_message "\nPróximos passos:" "$YELLOW"
