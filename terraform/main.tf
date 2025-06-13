@@ -47,6 +47,7 @@ module "api_gateway" {
   api_gateway_nome_aluno        = var.nome_aluno
   api_gateway_nome_dominio      = var.nome_dominio
   api_gateway_tags             = var.tags
+  = data.aws_route53_zone.selecionada.zone_id
 }
 
 # =============================================

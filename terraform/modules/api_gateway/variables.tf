@@ -19,3 +19,8 @@ variable "api_gateway_tags" {
   type        = map(string)
   default     = {}
 } 
+
+variable "api_gateway_id_zona_hospedada" {
+  description = "Zona recebido do modulo main"
+  type        = string
+}
