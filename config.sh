@@ -171,8 +171,8 @@ fi
 print_message "✓ Zona DNS encontrada: $ZONE_ID"
 
 # Executar o script Python
-print_message "Executando configuração..."
-python3 scripts/configurar_aluno.py "$1" "$2"
+#print_message "Executando configuração..."
+#python3 scripts/configurar_aluno.py "$1" "$2"
 
 # Desativar ambiente virtual
 deactivate
