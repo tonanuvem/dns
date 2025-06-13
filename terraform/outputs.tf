@@ -8,6 +8,16 @@ output "frontend_url" {
   value       = module.frontend.frontend_url
 }
 
+output "frontend_domain_name" {
+  description = "Nome de domínio do frontend"
+  value       = module.frontend.frontend_domain_name
+}
+
+output "frontend_domain_zone_id" {
+  description = "ID da zona do domínio do frontend"
+  value       = module.frontend.frontend_domain_zone_id
+}
+
 output "lambda_dynamodb_table_name" {
   description = "Nome da tabela DynamoDB"
   value       = module.lambda_api.lambda_dynamodb_table_name
@@ -26,16 +36,6 @@ output "api_gateway_domain_name" {
 output "api_gateway_domain_zone_id" {
   description = "ID da zona do domínio da API Gateway"
   value       = module.api_gateway.api_gateway_domain_zone_id
-}
-
-output "frontend_domain_name" {
-  description = "Nome de domínio do frontend"
-  value       = module.frontend.frontend_domain_name
-}
-
-output "frontend_domain_zone_id" {
-  description = "ID da zona do domínio do frontend"
-  value       = module.frontend.frontend_domain_zone_id
 }
 
 output "dns_api_record_name" {
