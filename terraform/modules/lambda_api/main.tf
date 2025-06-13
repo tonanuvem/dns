@@ -23,7 +23,7 @@ resource "aws_dynamodb_table" "registros_dns" {
 # Arquivo ZIP da função Lambda
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_file = "${path.root}/lambda_zip/gerenciador_dns.zip"
+  source_file = "${path.root}/../lambda_zip/gerenciador_dns.zip"
   output_path = "${path.module}/lambda_function.zip"
 }
 
@@ -103,4 +103,4 @@ resource "aws_lambda_permission" "api_gw" {
   function_name = aws_lambda_function.gerenciador_dns.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
-} 
+}
