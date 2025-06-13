@@ -4,87 +4,64 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
 # Função para imprimir mensagens
 print_message() {
-    echo -e "${2}${1}${NC}"
+    echo -e "${GREEN}[INFO]${NC} $1"
 }
 
-# Função para verificar status do comando
+# Função para imprimir erros
+print_error() {
+    echo -e "${RED}[ERRO]${NC} $1"
+}
+
+# Função para verificar se um comando foi bem sucedido
 check_status() {
     if [ $? -eq 0 ]; then
-        print_message "✓ $1" "$GREEN"
+        print_message "$1"
     else
-        print_message "✗ $2" "$RED"
+        print_error "$2"
         exit 1
     fi
 }
 
 # Verificar se o AWS CLI está instalado
 if ! command -v aws &> /dev/null; then
-    print_message "AWS CLI não está instalado. Por favor, instale-o primeiro." "$RED"
+    print_error "AWS CLI não está instalado"
     exit 1
 fi
 
 # Verificar se as credenciais AWS estão configuradas
-print_message "Verificando credenciais AWS..." "$YELLOW"
 if ! aws sts get-caller-identity &> /dev/null; then
-    print_message "Credenciais AWS não configuradas ou inválidas." "$RED"
-    print_message "Por favor, configure suas credenciais AWS:" "$YELLOW"
-    aws configure
-    check_status "Credenciais AWS configuradas com sucesso" "Erro ao configurar credenciais AWS"
+    print_error "Credenciais AWS não configuradas"
+    exit 1
 fi
 
 # Verificar se a LabRole existe
-print_message "Verificando se a LabRole existe..." "$YELLOW"
+print_message "Verificando existência da LabRole..."
 if ! aws iam get-role --role-name LabRole &> /dev/null; then
-    print_message "Erro: LabRole não encontrada" "$RED"
+    print_error "LabRole não encontrada"
     exit 1
 fi
-print_message "LabRole encontrada" "$GREEN"
 
-# Listar políticas gerenciadas
-print_message "\nPolíticas gerenciadas da LabRole:" "$YELLOW"
+# Verificar políticas gerenciadas
+print_message "Verificando políticas gerenciadas..."
 aws iam list-attached-role-policies --role-name LabRole --query 'AttachedPolicies[*].PolicyName' --output text
-check_status "Políticas gerenciadas listadas com sucesso" "Erro ao listar políticas gerenciadas"
+check_status "Políticas gerenciadas verificadas" "Erro ao verificar políticas gerenciadas"
 
-# Listar políticas inline
-print_message "\nPolíticas inline da LabRole:" "$YELLOW"
+# Verificar políticas inline
+print_message "Verificando políticas inline..."
 aws iam list-role-policies --role-name LabRole --query 'PolicyNames' --output text
-check_status "Políticas inline listadas com sucesso" "Erro ao listar políticas inline"
+check_status "Políticas inline verificadas" "Erro ao verificar políticas inline"
 
-# Verificar permissões necessárias
-print_message "\nVerificando permissões necessárias..." "$YELLOW"
-
-# Lista de permissões necessárias
-PERMISSOES_NECESSARIAS=(
-    "dynamodb:GetItem"
-    "dynamodb:PutItem"
-    "dynamodb:UpdateItem"
-    "dynamodb:DeleteItem"
-    "dynamodb:Scan"
-    "dynamodb:Query"
-    "lambda:InvokeFunction"
-    "apigateway:*"
-    "route53:*"
-    "s3:*"
-    "cloudfront:*"
-    "acm:*"
-    "logs:*"
-)
-
-# Verificar cada permissão
-''' 
-for permissao in "${PERMISSOES_NECESSARIAS[@]}"; do
-    print_message "Verificando permissão: $permissao" "$YELLOW"
-    if ! aws iam simulate-principal-policy --policy-source-arn "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/LabRole" --action-names "$permissao" --resource-arns "*" --query 'EvaluationResults[0].EvalDecision' --output text | grep -q "allowed"; then
-        print_message "Aviso: Permissão $permissao não encontrada" "$RED"
-    else
-        print_message "Permissão $permissao encontrada" "$GREEN"
-    fi
-done
-'''
-
-print_message "\nLabRole : Validação concluída!" "$GREEN"
-print_message "\nContinuando próximos passos..." "$YELLOW"
+print_message "LabRole encontrada e verificada com sucesso!"
+print_message "Próximos passos:"
+print_message "1. Verifique se as políticas anexadas têm as permissões necessárias para:"
+print_message "   - Lambda (criar e gerenciar funções)"
+print_message "   - API Gateway (criar e gerenciar APIs)"
+print_message "   - DynamoDB (criar e gerenciar tabelas)"
+print_message "   - Route 53 (criar e gerenciar registros DNS)"
+print_message "   - S3 (criar e gerenciar buckets)"
+print_message "   - CloudFront (criar e gerenciar distribuições)"
+print_message "2. Se alguma permissão estiver faltando, solicite ao administrador para adicionar as políticas necessárias"
