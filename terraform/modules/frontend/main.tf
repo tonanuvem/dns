@@ -20,7 +20,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
 
 # Registro DNS para o frontend (CNAME para o endpoint S3 website)
 resource "aws_route53_record" "frontend" {
-  name    = "${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
+  name    = "www.${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
   type    = "CNAME"
   zone_id = var.frontend_id_zona_hospedada
   ttl     = 60
