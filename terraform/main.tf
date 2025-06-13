@@ -62,29 +62,28 @@ module "frontend" {
   frontend_nome_aluno   = var.nome_aluno
   frontend_nome_dominio = var.nome_dominio
   frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
-  frontend_tags = var.tags
+  frontend_tags         = var.tags
 }
 
 # =============================================
-# Fluxo 4: DNS (Depende de API Gateway e Frontend)
+# Fluxo 4: DNS (Dependente do Frontend e API Gateway)
 # =============================================
-# O módulo DNS depende de outros módulos para:
-# - API Gateway: Criar registro DNS para a API
-# - Frontend: Criar registro DNS para o frontend
-# - Zona hospedada: Criar zona DNS para o aluno
+# O módulo DNS é dependente e fornece:
+# - Registros DNS para API Gateway
+# - Registros DNS para Frontend
 module "dns" {
   source = "./modules/dns"
 
   dns_nome_aluno = var.nome_aluno
   dns_zone_id = data.aws_route53_zone.selecionada.zone_id
   
-  # Dependências do API Gateway
+  # Valores do API Gateway
   dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
-  dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_configuration[0].hosted_zone_id
+  dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
   
-  # Dependências do Frontend
-  dns_frontend_domain = module.frontend.frontend_cloudfront_domain
-  dns_frontend_domain_zone_id = module.frontend.frontend_cloudfront_zone_id
+  # Valores do Frontend
+  dns_frontend_domain = module.frontend.frontend_domain_name
+  dns_frontend_domain_zone_id = module.frontend.frontend_domain_zone_id
   
   dns_tags = var.tags
 }
