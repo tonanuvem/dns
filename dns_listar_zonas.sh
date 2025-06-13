@@ -41,6 +41,11 @@ else
     NOME_DOMINIO=$(echo "$ZONAS_JSON" | jq -r ".HostedZones[$ESCOLHA].Name" | sed 's/\.$//')
 fi
 
+# Testes temporários
+export NOME_ALUNO=$1
+export SENHA_COMPARTILHADA=$2
+envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
+
 # Atualizar o arquivo terraform.tfvars com o ID da zona e nome do domínio
 TF_VARS_FILE="terraform/terraform.tfvars"
 
