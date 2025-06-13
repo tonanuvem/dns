@@ -89,14 +89,10 @@ check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terra
 
 # Atualizar as variáveis no terraform.tfvars
 print_message "Atualizando variáveis no arquivo de configuração..."
-awk -v nome="$NOME_ALUNO" -v senha="$SENHA_COMPARTILHADA" '
-    /nome_aluno = "nome_aluno"/ { $0 = "nome_aluno = \"" nome "\"" }
-    /api_gateway_nome_aluno = "nome_aluno"/ { $0 = "api_gateway_nome_aluno = \"" nome "\"" }
-    /frontend_nome_aluno = "nome_aluno"/ { $0 = "frontend_nome_aluno = \"" nome "\"" }
-    /senha_compartilhada = "senha123"/ { $0 = "senha_compartilhada = \"" senha "\"" }
-    { print }
-' terraform/terraform.tfvars > terraform/terraform.tfvars.tmp && mv terraform/terraform.tfvars.tmp terraform/terraform.tfvars
-
+perl -pi -e "s/nome_aluno = \"nome_aluno\"/nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
+perl -pi -e "s/api_gateway_nome_aluno = \"nome_aluno\"/api_gateway_nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
+perl -pi -e "s/frontend_nome_aluno = \"nome_aluno\"/frontend_nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
+perl -pi -e "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMPARTILHADA\"/g" terraform/terraform.tfvars
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
