@@ -14,11 +14,6 @@ variable "api_gateway_nome_dominio" {
   default     = "dns.lab"
 }
 
-variable "api_gateway_lambda_function_arn" {
-  description = "ARN da função Lambda"
-  type        = string
-}
-
 variable "api_gateway_lambda_function_name" {
   description = "Nome da função Lambda"
   type        = string
@@ -30,7 +25,7 @@ variable "api_gateway_zone_id" {
 }
 
 variable "api_gateway_tags" {
-  description = "Tags padrão para todos os recursos"
+  description = "Tags padrão para todos os recursos do módulo API Gateway"
   type        = map(string)
   default     = {}
 } 
