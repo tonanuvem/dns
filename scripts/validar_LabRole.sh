@@ -86,8 +86,5 @@ for permissao in "${PERMISSOES_NECESSARIAS[@]}"; do
 done
 '''
 
-print_message "\nValidação concluída!" "$GREEN"
-print_message "\nPróximos passos:" "$YELLOW"
-print_message "1. Execute ./config.sh para configurar o ambiente" "$YELLOW"
-print_message "2. Execute ./criar.sh para criar os builds" "$YELLOW"
-print_message "3. Execute ./scripts/deploy.sh para fazer o deploy" "$YELLOW" 
+print_message "\nLabRole : Validação concluída!" "$GREEN"
+print_message "\nContinuando próximos passos..." "$YELLOW"
