@@ -4,17 +4,6 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "dns_nome_aluno" {
-  description = "Nome do aluno para prefixo dos recursos"
-  type        = string
-}
-
-variable "dns_nome_dominio" {
-  description = "Nome do domínio base para os recursos"
-  type        = string
-  default     = "dns.lab"
-}
-
 variable "id_zona_hospedada" {
   description = "ID da zona hospedada no Route 53"
   type        = string
