@@ -94,13 +94,22 @@ sed -i "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMP
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
-if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
-   grep -q "senha_compartilhada = \"$SENHA_COMPARTILHADA\"" terraform/terraform.tfvars; then
-    print_message "Configuração concluída com sucesso!"
+print_message "Verificando atualizações no arquivo de configuração..."
+if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
+    print_message "✓ Nome do aluno atualizado com sucesso"
 else
-    print_error "Falha ao verificar as atualizações no arquivo de configuração"
+    print_error "Falha ao atualizar nome do aluno"
     exit 1
 fi
+
+if grep -q "senha_compartilhada = \"$SENHA_COMPARTILHADA\"" terraform/terraform.tfvars; then
+    print_message "✓ Senha compartilhada atualizada com sucesso"
+else
+    print_error "Falha ao atualizar senha compartilhada"
+    exit 1
+fi
+
+print_message "Configuração do arquivo terraform.tfvars concluída com sucesso!"
 
 # Tornar os scripts executáveis
 print_message "Configurando permissões dos scripts..."
