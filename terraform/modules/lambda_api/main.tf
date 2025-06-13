@@ -105,27 +105,4 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
-# Outputs
-output "lambda_function_arn" {
-  value = aws_lambda_function.gerenciador_dns.arn
-}
-
-output "lambda_function_name" {
-  value = aws_lambda_function.gerenciador_dns.function_name
-}
-
-output "lambda_function_invoke_arn" {
-  value = aws_lambda_function.gerenciador_dns.invoke_arn
-}
-
-output "api_endpoint" {
-  value = aws_apigatewayv2_api.api.api_endpoint
-}
-
-output "dynamodb_table_name" {
-  value = aws_dynamodb_table.registros_dns.name
-}
-
-output "dynamodb_table_arn" {
-  value = aws_dynamodb_table.registros_dns.arn
-} 
+# Removendo os outputs que foram movidos para outputs.tf 

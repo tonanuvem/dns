@@ -161,37 +161,6 @@ resource "aws_lambda_permission" "apigw" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
-# Outputs
-output "api_endpoint" {
-  description = "Endpoint da API Gateway"
-  value       = module.api_gateway.api_endpoint
-}
-
-output "frontend_url" {
-  description = "URL do frontend"
-  value       = module.frontend.frontend_url
-}
-
-output "dynamodb_table_name" {
-  description = "Nome da tabela DynamoDB"
-  value       = module.lambda_api.dynamodb_table_name
-}
-
-output "nameservers" {
-  value = aws_route53_zone.zona_aluno.name_servers
-  description = "Nameservers da zona hospedada"
-}
-
-output "zona_id" {
-  value = aws_route53_zone.zona_aluno.zone_id
-  description = "ID da zona hospedada"
-}
-
-output "dynamodb_table" {
-  value = aws_dynamodb_table.registros_dns.name
-  description = "Nome da tabela DynamoDB"
-}
-
 # Variáveis
 variable "nome_aluno" {
   description = "Nome do aluno para prefixo dos recursos"
