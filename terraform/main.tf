@@ -25,7 +25,7 @@ data "aws_caller_identity" "current" {}
 module "api_gateway" {
   source = "./modules/api_gateway"
 
-  api_gateway_lambda_invoke_arn = module.lambda_api.lambda_function_invoke_arn
+  api_gateway_lambda_invoke_arn = module.lambda_api.lambda_invoke_arn
   api_gateway_nome_aluno        = var.nome_aluno
   api_gateway_nome_dominio      = var.nome_dominio
   api_gateway_tags             = var.tags
@@ -53,10 +53,10 @@ module "dns" {
 
   nome_aluno = var.nome_aluno
   zone_id = data.aws_route53_zone.selecionada.zone_id
-  api_gateway_domain = module.api_gateway.domain_name
-  api_gateway_domain_zone_id = module.api_gateway.domain_name_configuration[0].hosted_zone_id
-  frontend_domain = module.frontend.cloudfront_domain_name
-  frontend_domain_zone_id = module.frontend.cloudfront_hosted_zone_id
+  api_gateway_domain = module.api_gateway.api_gateway_domain_name
+  api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_configuration[0].hosted_zone_id
+  frontend_domain = module.frontend.frontend_cloudfront_domain
+  frontend_domain_zone_id = module.frontend.frontend_cloudfront_zone_id
   tags = var.tags
 }
 
