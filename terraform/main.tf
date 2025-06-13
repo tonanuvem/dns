@@ -22,19 +22,19 @@ data "aws_route53_zone" "selecionada" {
 module "api_gateway" {
   source = "./modules/api_gateway"
 
-  lambda_invoke_arn = module.lambda_api.lambda_function_invoke_arn
-  nome_aluno        = var.nome_aluno
-  nome_dominio      = var.nome_dominio
-  tags             = var.tags
+  api_gateway_lambda_invoke_arn = module.lambda_api.lambda_function_invoke_arn
+  api_gateway_nome_aluno        = var.nome_aluno
+  api_gateway_nome_dominio      = var.nome_dominio
+  api_gateway_tags             = var.tags
 }
 
 # Módulo do Frontend
 module "frontend" {
   source = "./modules/frontend"
 
-  nome_aluno   = var.nome_aluno
-  nome_dominio = var.nome_dominio
-  tags         = var.tags
+  frontend_nome_aluno   = var.nome_aluno
+  frontend_nome_dominio = var.nome_dominio
+  frontend_tags         = var.tags
 }
 
 # Módulo da função Lambda

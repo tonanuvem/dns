@@ -1,14 +1,14 @@
-variable "lambda_invoke_arn" {
+variable "api_gateway_lambda_invoke_arn" {
   description = "ARN da função Lambda para invocação"
   type        = string
 }
 
-variable "nome_aluno" {
+variable "api_gateway_nome_aluno" {
   description = "Nome do aluno para prefixo dos recursos"
   type        = string
 }
 
-variable "nome_dominio" {
+variable "api_gateway_nome_dominio" {
   description = "Nome do domínio base para os recursos"
   type        = string
   default     = "dns.lab"
@@ -29,7 +29,7 @@ variable "zone_id" {
   type        = string
 }
 
-variable "tags" {
+variable "api_gateway_tags" {
   description = "Tags padrão para todos os recursos"
   type        = map(string)
   default     = {}

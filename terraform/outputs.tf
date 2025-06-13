@@ -22,3 +22,4 @@ output "zone_id" {
   description = "ID da zona hospedada no Route 53"
   value       = var.id_zona_hospedada
 }
+ 

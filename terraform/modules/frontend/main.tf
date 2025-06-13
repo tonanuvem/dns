@@ -1,8 +1,8 @@
 # Bucket S3 para o frontend
 resource "aws_s3_bucket" "frontend" {
-  bucket = "frontend-${var.nome_aluno}.${var.nome_dominio}"
+  bucket = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
 
-  tags = var.tags
+  tags = var.frontend_tags
 }
 
 # Configuração do bucket como website
@@ -38,15 +38,15 @@ resource "aws_s3_bucket_policy" "frontend" {
 
 # Certificado ACM para o frontend
 resource "aws_acm_certificate" "frontend" {
-  domain_name       = "frontend-${var.nome_aluno}.${var.nome_dominio}"
+  domain_name       = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
   validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
   }
 
-  tags = merge(var.tags, {
-    Name = "frontend-${var.nome_aluno}-cert"
+  tags = merge(var.frontend_tags, {
+    Name = "frontend-${var.frontend_nome_aluno}-cert"
   })
 }
 
@@ -62,7 +62,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   is_ipv6_enabled    = true
   default_root_object = "index.html"
   price_class        = "PriceClass_100"
-  aliases            = ["frontend-${var.nome_aluno}.${var.nome_dominio}"]
+  aliases            = ["frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"]
 
   origin {
     domain_name = aws_s3_bucket_website_configuration.frontend.website_endpoint
@@ -103,12 +103,12 @@ resource "aws_cloudfront_distribution" "frontend" {
     minimum_protocol_version = "TLSv1.2_2021"
   }
 
-  tags = var.tags
+  tags = var.frontend_tags
 }
 
 # Registro DNS para o frontend
 resource "aws_route53_record" "frontend" {
-  name    = "frontend-${var.nome_aluno}.${var.nome_dominio}"
+  name    = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
   type    = "A"
   zone_id = var.id_zona_hospedada
 

@@ -9,7 +9,7 @@ resource "aws_apigatewayv2_api" "api" {
     max_age      = 300
   }
 
-  tags = var.tags
+  tags = var.api_gateway_tags
 }
 
 # Integração da API Gateway com a função Lambda
@@ -20,7 +20,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   connection_type    = "INTERNET"
   description        = "Lambda integration"
   integration_method = "POST"
-  integration_uri    = var.lambda_invoke_arn
+  integration_uri    = var.api_gateway_lambda_invoke_arn
 }
 
 # Rota da API Gateway
@@ -36,20 +36,20 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
   name   = "prod"
   auto_deploy = true
 
-  tags = var.tags
+  tags = var.api_gateway_tags
 }
 
 # Certificado ACM para a API
 resource "aws_acm_certificate" "api" {
-  domain_name       = "api.${var.nome_aluno}.${var.nome_dominio}"
+  domain_name       = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
   validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
   }
 
-  tags = merge(var.tags, {
-    Name = "api-${var.nome_aluno}-cert"
+  tags = merge(var.api_gateway_tags, {
+    Name = "api-${var.api_gateway_nome_aluno}-cert"
   })
 }
 
@@ -61,7 +61,7 @@ resource "aws_acm_certificate_validation" "api" {
 
 # Domínio personalizado da API
 resource "aws_apigatewayv2_domain_name" "api" {
-  domain_name = "api.${var.nome_aluno}.${var.nome_dominio}"
+  domain_name = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
 
   domain_name_configuration {
     certificate_arn = aws_acm_certificate.api.arn
@@ -69,7 +69,7 @@ resource "aws_apigatewayv2_domain_name" "api" {
     security_policy = "TLS_1_2"
   }
 
-  tags = var.tags
+  tags = var.api_gateway_tags
 }
 
 # Mapeamento da API para o domínio personalizado
