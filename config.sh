@@ -90,15 +90,19 @@ check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terra
 # Atualizar as variáveis no terraform.tfvars
 print_message "Atualizando variáveis no arquivo de configuração..."
 sed -i "s/nome_aluno = \"nome_aluno\"/nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
+sed -i "s/api_gateway_nome_aluno = \"nome_aluno\"/api_gateway_nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
+sed -i "s/frontend_nome_aluno = \"nome_aluno\"/frontend_nome_aluno = \"$NOME_ALUNO\"/" terraform/terraform.tfvars
 sed -i "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMPARTILHADA\"/" terraform/terraform.tfvars
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
 print_message "Verificando atualizações no arquivo de configuração..."
-if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
-    print_message "✓ Nome do aluno atualizado com sucesso"
+if grep -q "nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
+   grep -q "api_gateway_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars && \
+   grep -q "frontend_nome_aluno = \"$NOME_ALUNO\"" terraform/terraform.tfvars; then
+    print_message "✓ Nome do aluno atualizado com sucesso em todas as ocorrências"
 else
-    print_error "Falha ao atualizar nome do aluno"
+    print_error "Falha ao atualizar nome do aluno em todas as ocorrências"
     print_message "Conteúdo atual do arquivo terraform.tfvars:"
     cat terraform/terraform.tfvars
     exit 1
