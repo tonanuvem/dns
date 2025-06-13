@@ -86,7 +86,7 @@ fi
 print_message "Criando arquivo de configuração do Terraform..."
 export NOME_ALUNO="$NOME_ALUNO"
 export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
-substenv terraform/terraform.tfvars.example > terraform/terraform.tfvars
+envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
