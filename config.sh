@@ -84,15 +84,9 @@ fi
 
 # Criar terraform.tfvars a partir do exemplo
 print_message "Criando arquivo de configuração do Terraform..."
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-check_status "Arquivo terraform.tfvars criado com sucesso" "Falha ao criar terraform.tfvars"
-
-# Atualizar as variáveis no terraform.tfvars
-print_message "Atualizando variáveis no arquivo de configuração..."
-perl -pi -e "s/nome_aluno = \"nome\"/nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
-perl -pi -e "s/api_gateway_nome_aluno = \"nome\"/api_gateway_nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
-perl -pi -e "s/frontend_nome_aluno = \"nome\"/frontend_nome_aluno = \"$NOME_ALUNO\"/g" terraform/terraform.tfvars
-perl -pi -e "s/senha_compartilhada = \"senha123\"/senha_compartilhada = \"$SENHA_COMPARTILHADA\"/g" terraform/terraform.tfvars
+export NOME_ALUNO="$NOME_ALUNO"
+export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
+substenv terraform/terraform.tfvars.example > terraform/terraform.tfvars
 check_status "Variáveis atualizadas com sucesso" "Falha ao atualizar variáveis"
 
 # Verificar se o arquivo terraform.tfvars foi atualizado corretamente
