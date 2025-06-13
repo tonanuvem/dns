@@ -172,9 +172,3 @@ variable "nome_dominio" {
   type        = string
   default     = "dns.lab"
 }
-
-variable "tags" {
-  description = "Tags padrão para todos os recursos"
-  type        = map(string)
-  default     = {}
-} 
