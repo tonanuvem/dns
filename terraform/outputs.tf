@@ -1,6 +1,6 @@
 output "api_gateway_endpoint" {
   description = "Endpoint da API Gateway"
-  value       = module.api_gateway.api_endpoint
+  value       = module.api_gateway.api_gateway_endpoint
 }
 
 output "frontend_url" {
@@ -56,4 +56,4 @@ output "dns_zone_id" {
 #output "dns_nameservers" {
 #  description = "Nameservers da zona hospedada"
 #  value       = module.dns.nameservers
-#} 
+#}
