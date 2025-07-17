@@ -49,15 +49,9 @@ zip -r "$BASE_DIR/lambda_zip/gerenciador_dns.zip" .
 cd "$BASE_DIR"
 check_status "Arquivo ZIP do Lambda criado com sucesso" "Erro ao criar arquivo ZIP do Lambda"
 
-# Verificar se o arquivo ZIP foi criado corretamente
+# Verificar se o arquivo ZIP já existe
 if [ ! -f "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
-    print_message "O arquivo ZIP não foi criado corretamente." "$RED"
-    exit 1
-fi
-
-# Verificar se o arquivo ZIP tem conteúdo
-if [ ! -s "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
-    print_message "O arquivo ZIP está vazio." "$RED"
+    print_message "O arquivo lambda_zip/gerenciador_dns.zip não foi encontrado. Por favor, gere o ZIP antes de rodar este script." "$RED"
     exit 1
 fi
 
@@ -66,4 +60,4 @@ print_message "Copiando arquivo ZIP para o módulo lambda..." "$YELLOW"
 cp "$BASE_DIR/lambda_zip/gerenciador_dns.zip" "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip"
 check_status "Arquivo ZIP copiado com sucesso" "Erro ao copiar arquivo ZIP"
 
-print_message "Backend criado com sucesso!" "$GREEN" 
+print_message "Backend preparado com sucesso!" "$GREEN" 
