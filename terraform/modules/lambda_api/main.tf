@@ -1,6 +1,6 @@
 # Tabela DynamoDB para armazenar registros DNS
 resource "aws_dynamodb_table" "registros_dns" {
-  name           = "registros-dns"
+  name           = var.lambda_dynamodb_table_name
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "alias"
   stream_enabled = true
@@ -30,7 +30,7 @@ data "archive_file" "lambda_zip" {
 # Função Lambda
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = data.archive_file.lambda_zip.output_path
-  function_name    = "gerenciador-dns"
+  function_name    = "gerenciador-dns-${var.lambda_nome_aluno}"
   role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
   handler         = "gerenciador_dns.lambda_handler"
   runtime         = "python3.9"
