@@ -14,10 +14,6 @@ resource "aws_dynamodb_table" "registros_dns" {
   tags = merge(var.lambda_tags, {
     Name = "registros-dns"
   })
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # Arquivo ZIP da função Lambda
