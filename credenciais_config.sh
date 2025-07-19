@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Cria o diretório ./files se não existir
+# Cria diretório ./files se não existir
 mkdir -p ./files
 
-echo "Cole suas credenciais da AWS e pressione ENTER após colar todas elas:"
-read -r -d '' CRED
+echo "Cole suas credenciais da AWS e pressione ENTER (duas vezes):"
+
+# Lê entrada até a primeira linha em branco
+CRED=$(sed '/^$/q')
 
 # Salva as credenciais completas no arquivo
 echo "$CRED" > ./files/credentials
 
-# Exporta apenas as variáveis (ignorando a linha [default] se existir)
+# Faz parsing a partir da 2ª linha (ou ignora a linha [default])
 echo "$CRED" | grep -v '^\[.*\]$' | while IFS='=' read -r chave valor; do
     chave=$(echo "$chave" | xargs)
     valor=$(echo "$valor" | xargs)
