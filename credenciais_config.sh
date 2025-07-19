@@ -21,4 +21,6 @@ echo "$CRED" | grep -v '^\[.*\]$' | while IFS='=' read -r chave valor; do
     fi
 done
 
+aws sts get-caller-identity
+
 echo "Credenciais salvas em ./files/credentials"
