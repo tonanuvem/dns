@@ -18,6 +18,11 @@ echo "$CRED" | grep -v '^\[.*\]$' | while IFS='=' read -r chave valor; do
     if [[ -n "$chave" && -n "$valor" ]]; then
         export "$chave=$valor"
         echo "Exportado: $chave"
+
+        # Exporta também em UPPERCASE
+        upper_key=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
+        export "$upper_key=$valor"
+        echo "Exportado (uppercase): $upper_key"
     fi
 done
 
