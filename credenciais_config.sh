@@ -11,20 +11,23 @@ CRED=$(sed '/^$/q')
 # Salva as credenciais completas no arquivo
 echo "$CRED" > ./files/credentials
 
-# Faz parsing a partir da 2ª linha (ou ignora a linha [default])
-echo "$CRED" | grep -v '^\[.*\]$' | while IFS='=' read -r chave valor; do
+# Lê linha por linha diretamente da string, sem usar pipe (evita subshell)
+while IFS='=' read -r chave valor; do
+    # Ignora linha [default] ou vazia
+    [[ "$chave" =~ ^\[.*\]$ || -z "$chave" ]] && continue
+
     chave=$(echo "$chave" | xargs)
     valor=$(echo "$valor" | xargs)
+
     if [[ -n "$chave" && -n "$valor" ]]; then
         export "$chave=$valor"
         echo "Exportado: $chave"
 
-        # Exporta também em UPPERCASE
         upper_key=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
         export "$upper_key=$valor"
         echo "Exportado (uppercase): $upper_key"
     fi
-done
+done <<< "$CRED"
 
 aws sts get-caller-identity
 
