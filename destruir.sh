@@ -42,8 +42,18 @@ if [ -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
     check_status "Remoção do arquivo ZIP do Lambda"
 fi
 
-# 3. Executar terraform destroy
-print_message "$YELLOW" "\n3. Executando terraform destroy..."
+# 3. Esvaziar bucket S3 do frontend antes do destroy
+cd "$BASE_DIR/terraform"
+BUCKET_NAME=$(terraform output -raw frontend_bucket_name 2>/dev/null)
+cd "$BASE_DIR"
+
+if [ -n "$BUCKET_NAME" ]; then
+  print_message "$YELLOW" "Esvaziando bucket S3: $BUCKET_NAME"
+  aws s3 rm "s3://$BUCKET_NAME" --recursive
+fi
+
+# 4. Executar terraform destroy
+print_message "$YELLOW" "\n4. Executando terraform destroy..."
 
 # Navegar para o diretório terraform
 cd "$BASE_DIR/terraform"
@@ -53,8 +63,8 @@ print_message "$YELLOW" "Executando terraform destroy..."
 terraform destroy -auto-approve
 check_status "Terraform destroy"
 
-# 4. Limpar arquivos do Terraform
-print_message "$YELLOW" "\n4. Limpando arquivos do Terraform..."
+# 5. Limpar arquivos do Terraform
+print_message "$YELLOW" "\n5. Limpando arquivos do Terraform..."
 
 # Remover arquivos de estado e cache
 rm -f .terraform.lock.hcl
