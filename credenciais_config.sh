@@ -8,27 +8,41 @@ echo "Cole suas credenciais da AWS e pressione ENTER (duas vezes):"
 # Lê entrada até a primeira linha em branco
 CRED=$(sed '/^$/q')
 
-# Salva as credenciais completas no arquivo
-echo "$CRED" > ./files/credentials
+# Define o arquivo onde as credenciais serão salvas
+CREDENTIALS_FILE="./files/credentials"
+# Salva todas as credenciais em um arquivo
+echo "$CRED" > "$CREDENTIALS_FILE"
 
-# Lê linha por linha diretamente da string, sem usar pipe (evita subshell)
-while IFS='=' read -r chave valor; do
-    # Ignora linha [default] ou vazia
-    [[ "$chave" =~ ^\[.*\]$ || -z "$chave" ]] && continue
+# Define o arquivo de perfil (ajuste para zsh, se necessário)
+SHELL_PROFILE="$HOME/.bashrc"  # ou ~/.bash_profile, dependendo da distro
 
-    chave=$(echo "$chave" | xargs)
-    valor=$(echo "$valor" | xargs)
+# Remove blocos anteriores adicionados pelo script (caso o usuário execute mais de uma vez)
+sed -i '/# AWS Academy START/,/# AWS Academy END/d' "$SHELL_PROFILE"
 
-    if [[ -n "$chave" && -n "$valor" ]]; then
-        export "$chave=$valor"
-        echo "Exportado: $chave"
+# Adiciona novo bloco de exportações
+{
+    echo ""
+    echo "# AWS Academy START"
+    echo "# Essas variáveis foram adicionadas por config_credenciais.sh em $(date)"
+    echo "$CRED" | grep -v '^\[.*\]$' | while IFS='=' read -r chave valor; do
+        chave=$(echo "$chave" | xargs)
+        valor=$(echo "$valor" | xargs)
 
-        upper_key=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
-        export "$upper_key=$valor"
-        echo "Exportado (uppercase): $upper_key"
-    fi
-done <<< "$CRED"
+        if [[ -n "$chave" && -n "$valor" ]]; then
+            echo "export $chave=\"$valor\""
+            upper_key=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
+            echo "export $upper_key=\"$valor\""
+        fi
+    done
+    echo "# AWS Academy END"
+} >> "$SHELL_PROFILE"
 
-aws sts get-caller-identity
+echo ""
+echo "Credenciais exportadas e salvas em:"
+echo " - Arquivo temporário: $CREDENTIALS_FILE"
+echo " - Shell profile: $SHELL_PROFILE"
 
-echo "Credenciais salvas em ./files/credentials"
+echo ""
+echo "⚠️  Abra um novo terminal ou execute:"
+echo "   source $SHELL_PROFILE"
+echo "para ativar as credenciais neste ambiente."
