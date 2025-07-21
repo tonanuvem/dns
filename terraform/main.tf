@@ -84,6 +84,7 @@ module "dns" {
   # Valores do Frontend
   dns_frontend_domain = module.frontend.frontend_domain_name
   dns_frontend_domain_zone_id = module.frontend.frontend_domain_zone_id
+  dns_frontend_website_endpoint = module.frontend.frontend_website_endpoint
   
   dns_tags = var.tags
 }

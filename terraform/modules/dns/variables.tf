@@ -30,6 +30,11 @@ variable "dns_frontend_domain_zone_id" {
   type        = string
 }
 
+variable "dns_frontend_website_endpoint" {
+  description = "Endpoint do S3 website do frontend"
+  type        = string
+}
+
 variable "dns_tags" {
   description = "Tags padrão para todos os recursos do módulo DNS"
   type        = map(string)

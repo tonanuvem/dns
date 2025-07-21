@@ -18,5 +18,5 @@ resource "aws_route53_record" "frontend" {
   name    = "frontend.${var.dns_nome_aluno}"
   type    = "CNAME"
   ttl     = 60
-  records = [aws_s3_bucket_website_configuration.frontend.website_endpoint]
+  records = [var.dns_frontend_website_endpoint]
 }

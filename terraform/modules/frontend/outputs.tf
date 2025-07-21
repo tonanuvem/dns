@@ -22,3 +22,8 @@ output "frontend_url" {
   description = "URL do frontend"
   value       = "http://frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
 }
+
+output "frontend_website_endpoint" {
+  description = "Endpoint do S3 website do frontend"
+  value       = aws_s3_bucket_website_configuration.frontend.website_endpoint
+}
