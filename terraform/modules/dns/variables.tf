@@ -11,11 +11,13 @@ variable "dns_zone_id" {
 variable "dns_api_gateway_domain" {
   description = "Nome de domínio da API Gateway"
   type        = string
+  default     = ""
 }
 
 variable "dns_api_gateway_domain_zone_id" {
   description = "ID da zona do domínio da API Gateway"
   type        = string
+  default     = ""
 }
 
 variable "dns_frontend_domain" {

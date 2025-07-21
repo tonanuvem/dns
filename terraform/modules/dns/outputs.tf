@@ -1,6 +1,6 @@
 output "dns_api_record_name" {
   description = "Nome do registro DNS da API"
-  value       = aws_route53_record.api.name
+  value       = length(aws_route53_record.api) > 0 ? aws_route53_record.api[0].name : ""
 }
 
 output "dns_frontend_record_name" {

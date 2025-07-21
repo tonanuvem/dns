@@ -78,8 +78,8 @@ module "dns" {
   dns_zone_id = data.aws_route53_zone.selecionada.zone_id
   
   # Valores do API Gateway
-  dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
-  dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
+  # dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
+  # dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
   
   # Valores do Frontend
   dns_frontend_domain = module.frontend.frontend_domain_name

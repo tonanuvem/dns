@@ -1,5 +1,6 @@
 # Registro DNS para a API
 resource "aws_route53_record" "api" {
+  count   = var.dns_api_gateway_domain != "" && var.dns_api_gateway_domain_zone_id != "" ? 1 : 0
   zone_id = var.dns_zone_id
   name    = "api.${var.dns_nome_aluno}"
   type    = "A"
@@ -15,11 +16,7 @@ resource "aws_route53_record" "api" {
 resource "aws_route53_record" "frontend" {
   zone_id = var.dns_zone_id
   name    = "frontend.${var.dns_nome_aluno}"
-  type    = "A"
-
-  alias {
-    name                   = var.dns_frontend_domain
-    zone_id                = var.dns_frontend_domain_zone_id
-    evaluate_target_health = false
-  }
+  type    = "CNAME"
+  ttl     = 60
+  records = [aws_s3_bucket_website_configuration.frontend.website_endpoint]
 }

@@ -37,9 +37,11 @@ if [ ! -d "$BASE_DIR/terraform/frontend_build" ]; then
 fi
 
 # Verificar se o bucket S3 existe
-BUCKET_NAME=$(grep -A 1 "bucket" "$BASE_DIR/terraform/terraform.tfvars" | grep -v "bucket" | tr -d ' "')
+cd "$BASE_DIR/terraform"
+BUCKET_NAME=$(terraform output -raw frontend_bucket_name 2>/dev/null)
+cd "$BASE_DIR"
 if [ -z "$BUCKET_NAME" ]; then
-    print_message "Não foi possível encontrar o nome do bucket S3 no arquivo terraform.tfvars." "$RED"
+    print_message "Não foi possível obter o nome do bucket S3 via Terraform output." "$RED"
     exit 1
 fi
 
@@ -55,13 +57,13 @@ aws s3 sync "$BASE_DIR/terraform/frontend_build" "s3://$BUCKET_NAME" --delete
 check_status "Arquivos atualizados com sucesso no S3" "Erro ao atualizar arquivos no S3"
 
 # Invalidar o cache do CloudFront
-print_message "Invalidando cache do CloudFront..." "$YELLOW"
-DISTRIBUTION_ID=$(grep -A 1 "distribution_id" "$BASE_DIR/terraform/terraform.tfvars" | grep -v "distribution_id" | tr -d ' "')
-if [ -n "$DISTRIBUTION_ID" ]; then
-    aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
-    check_status "Cache do CloudFront invalidado com sucesso" "Erro ao invalidar cache do CloudFront"
-else
-    print_message "Não foi possível encontrar o ID da distribuição CloudFront no arquivo terraform.tfvars." "$YELLOW"
-fi
+# print_message "Invalidando cache do CloudFront..." "$YELLOW"
+# DISTRIBUTION_ID=$(grep -A 1 "distribution_id" "$BASE_DIR/terraform/terraform.tfvars" | grep -v "distribution_id" | tr -d ' "')
+# if [ -n "$DISTRIBUTION_ID" ]; then
+#     aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
+#     check_status "Cache do CloudFront invalidado com sucesso" "Erro ao invalidar cache do CloudFront"
+# else
+#     print_message "Não foi possível encontrar o ID da distribuição CloudFront no arquivo terraform.tfvars." "$YELLOW"
+# fi
 
 print_message "Frontend atualizado com sucesso!" "$GREEN" 
