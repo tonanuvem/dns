@@ -10,19 +10,17 @@ Sistema que permite aos alunos criarem aliases DNS para suas máquinas usando AW
 - AWS CLI 2.x
 - Terraform 1.x
 
-## Pré-reqs: Credenciais
-
-0. Executar script de credenciais:
-```bash
-source ./credenciais_config.sh
-```
-
 ## Configuração Inicial
 
 1. Clone o repositório:
 ```bash
 git clone https://github.com/seu-usuario/dns.git
 cd dns
+```
+
+1.1. Executar script de credenciais:
+```bash
+source ./credenciais_config.sh
 ```
 
 2. Execute o script de configuração:
