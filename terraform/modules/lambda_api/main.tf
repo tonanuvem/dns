@@ -38,6 +38,9 @@ resource "aws_lambda_function" "gerenciador_dns" {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.registros_dns.name
       SENHA_API = var.senha_compartilhada
+      TTL_DNS = var.ttl_dns
+      NAMESERVERS = var.nome_dominio
+      ZONA_ID = var.nome_dominio
     }
   }
 

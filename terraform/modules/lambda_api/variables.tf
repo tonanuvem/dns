@@ -19,3 +19,18 @@ variable "senha_compartilhada" {
   type        = string
   sensitive   = true
 }
+
+variable "ttl_dns" {
+  description = "Tempo de vida (TTL) dos registros DNS"
+  type        = number
+}
+
+variable "nome_dominio" {
+  description = "Nameservers para a zona DNS"
+  type        = string
+}
+
+variable "zona_id" {
+  description = "ID da zona DNS"
+  type        = string
+}
