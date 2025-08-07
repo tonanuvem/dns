@@ -30,6 +30,7 @@ module "lambda_api" {
   lambda_tags = var.tags
   lambda_nome_aluno = var.nome_aluno
   lambda_dynamodb_table_name = "registros-dns-${var.nome_aluno}"
+  senha_compartilhada = var.senha_compartilhada
 }
 
 # =============================================

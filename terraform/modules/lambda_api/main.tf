@@ -37,6 +37,7 @@ resource "aws_lambda_function" "gerenciador_dns" {
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.registros_dns.name
+      SENHA_API = var.senha_compartilhada
     }
   }
 

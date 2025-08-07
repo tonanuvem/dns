@@ -13,3 +13,9 @@ variable "lambda_dynamodb_table_name" {
   description = "Nome da tabela DynamoDB para registros DNS"
   type        = string
 } 
+
+variable "senha_compartilhada" {
+  description = "Senha compartilhada para autenticação na API"
+  type        = string
+  sensitive   = true
+}
