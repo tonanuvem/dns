@@ -61,13 +61,19 @@ def lambda_handler(event, context):
         }
 
 def listar_registros():
-    """Lista todos os registros DNS"""
+    """Lista todos os registros DNS, compatível com react-admin (ra-data-simple-rest)"""
     try:
         response = table.scan()
         registros = response.get('Items', [])
-        
+        qtd = len(registros)
+        content_range = f"registros 0-{qtd-1}/{qtd}" if qtd > 0 else "registros 0-0/0"
+
         return {
             'statusCode': 200,
+            'headers': {
+                'Content-Range': content_range,
+                'Access-Control-Expose-Headers': 'Content-Range'
+            },
             'body': json.dumps({
                 'registros': registros,
                 'nameservers': NAMESERVERS,
