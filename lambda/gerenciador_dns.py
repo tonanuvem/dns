@@ -34,7 +34,9 @@ def lambda_handler(event, context):
         print(f"HTTP Method: {http_method}, Path: {path}")
 
         headers = event.get('headers', {})
-        senha = headers.get('X-API-Key', '')
+        # API Gateway normaliza os nomes dos headers para minúsculas antes de passá-los para a função Lambda. Por isso, o X-API-Key no evento do curl se torna x-api-key no evento que a função Lambda recebe.
+        #senha = headers.get('X-API-Key', '')
+        senha = headers.get('x-api-key', '')  # Note a mudança para 'x-api-key' em minúsculas
         print(f"Header X-API-Key: {senha}")
 
         if not verificar_senha(senha):
