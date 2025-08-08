@@ -115,7 +115,7 @@ def criar_registro(dados):
 
         #nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
         nome_registro = f'{subdominio}.{NAMESERVERS[0]}'
-        
+
         print(f"Criando registro no Route53: {nome_registro} -> {endereco_ip}")
 
         change_batch = {
@@ -142,7 +142,7 @@ def criar_registro(dados):
 
         table.put_item(
             Item={
-                'subdominio': subdominio,
+                'alias': subdominio,
                 'endereco_ip': endereco_ip,
                 'data_criacao': datetime.now().isoformat()
             }
