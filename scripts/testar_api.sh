@@ -18,9 +18,9 @@ REGISTROS_URL="$API_URL/registros"
 INFO_URL="$API_URL/info"
 # Cria um subdomínio único usando a data e hora atuais.
 # Isso evita que o teste falhe se você rodar o script várias vezes.
-
 #SUBDOMINIO="teste-api-$(date +%s)"
-SUBDOMINIO="minha-api"
+
+SUBDOMINIO="INSERIRseuNOME"
 ENDERECO_IP="44.201.245.46"
 
 # --- JSON para o teste de POST ---
@@ -77,7 +77,7 @@ echo ""
 # # Comando curl:
 # # -X DELETE: Define o método HTTP como DELETE.
 # # A URL utiliza a variável 'SUBDOMINIO' para deletar o registro que acabamos de criar.
-# echo "=> Testando DELETE /registros/$SUBDOMINIO..."
+echo "=> Testando DELETE /registros/$SUBDOMINIO..."
 curl -s -i -X DELETE -H "X-API-Key: $API_KEY" "$REGISTROS_URL/$SUBDOMINIO"
 
 echo ""
