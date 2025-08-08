@@ -169,7 +169,7 @@ def deletar_registro(subdominio):
     print(f"Iniciando deletar_registro() para subdominio: {subdominio}")
     try:
         response = table.get_item(
-            Key={'subdominio': subdominio}
+            Key={'alias': subdominio}
         )
         print(f"Resposta do DynamoDB get_item: {response}")
 
@@ -181,7 +181,10 @@ def deletar_registro(subdominio):
             }
 
         endereco_ip = response['Item']['endereco_ip']
-        nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+
+        #nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+        nome_registro = f'{subdominio}.{NAMESERVERS[0]}'
+
         print(f"Deletando registro no Route53: {nome_registro} -> {endereco_ip}")
 
         change_batch = {
@@ -207,7 +210,7 @@ def deletar_registro(subdominio):
         print("Registro deletado do Route53")
 
         table.delete_item(
-            Key={'subdominio': subdominio}
+            Key={'alias': subdominio}
         )
         print("Registro deletado do DynamoDB")
 
@@ -215,6 +218,7 @@ def deletar_registro(subdominio):
             'statusCode': 200,
             'body': json.dumps({
                 'mensagem': 'Registro deletado com sucesso',
+                'subdominio': subdominio,
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID
             }, ensure_ascii=False)
