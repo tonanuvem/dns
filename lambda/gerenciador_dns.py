@@ -113,7 +113,9 @@ def criar_registro(dados):
                 'body': json.dumps({'erro': 'Subdomínio e endereço IP são obrigatórios'}, ensure_ascii=False)
             }
 
-        nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+        #nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+        nome_registro = f'{subdominio}.{NAMESERVERS[0]}'
+        
         print(f"Criando registro no Route53: {nome_registro} -> {endereco_ip}")
 
         change_batch = {
