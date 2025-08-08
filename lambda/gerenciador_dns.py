@@ -6,17 +6,21 @@ import hmac
 import base64
 from datetime import datetime
 
-# Configuração dos clientes AWS
-print("Inicializando clientes AWS...")
-dynamodb = boto3.resource('dynamodb')
-route53 = boto3.client('route53')
-table = dynamodb.Table(os.environ['DYNAMODB_TABLE'])
+try:
+    # Configuração dos clientes AWS
+    print("Inicializando clientes AWS...")
+    dynamodb = boto3.resource('dynamodb')
+    route53 = boto3.client('route53')
+    table = dynamodb.Table(os.environ['DYNAMODB_TABLE'])
 
-# Configurações
-SENHA_API = os.environ['SENHA_API']
-TTL_DNS = int(os.environ['TTL_DNS'])
-NAMESERVERS = os.environ['NAMESERVERS'].split(',')
-ZONA_ID = os.environ['ZONA_ID']
+    # Configurações
+    SENHA_API = os.environ['SENHA_API']
+    TTL_DNS = int(os.environ['TTL_DNS'])
+    NAMESERVERS = os.environ['NAMESERVERS'].split(',')
+    ZONA_ID = os.environ['ZONA_ID']
+except Exception as e:
+    print(f"Erro ao inicializar configurações ou clientes AWS: {e}")
+    raise
 
 def verificar_senha(senha_fornecida):
     print(f"Verificando senha fornecida: {senha_fornecida}")
