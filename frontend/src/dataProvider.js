@@ -1,20 +1,26 @@
 import { fetchUtils } from 'react-admin';
 
+// Obtém as variáveis de ambiente
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const apiKey = import.meta.env.VITE_API_KEY || 'aluno';
 
 const httpClient = (url, options = {}) => {
   if (!options.headers) {
     options.headers = new Headers({ Accept: 'application/json' });
   }
+  // Adiciona o header X-API-Key em todas as requisições
+  options.headers.set('X-API-Key', apiKey);
   return fetchUtils.fetchJson(url, options);
 };
 
 export const DataProvider = {
+  // A versão customizada funciona perfeitamente com a sua API.
+  // Ela já resolve o problema de o backend retornar um objeto com a chave "registros".
   getList: async (resource, params) => {
     const { json } = await httpClient(`${apiUrl}/${resource}`);
     return {
-      data: json,
-      total: json.length,
+      data: json.registros, // Ajustado para pegar a lista dentro do objeto
+      total: json.registros.length,
     };
   },
 
@@ -78,4 +84,4 @@ export const DataProvider = {
       total: json.registros.filter(record => record[params.target] === params.id).length,
     }));
   },
-}; 
+};
