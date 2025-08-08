@@ -34,43 +34,41 @@ def lambda_handler(event, context):
         print(f"HTTP Method: {http_method}, Path: {path}")
 
         headers = event.get('headers', {})
-        # API Gateway normaliza os nomes dos headers para minúsculas antes de passá-los para a função Lambda. Por isso, o X-API-Key no evento do curl se torna x-api-key no evento que a função Lambda recebe.
-        #senha = headers.get('X-API-Key', '')
-        senha = headers.get('x-api-key', '')  # Note a mudança para 'x-api-key' em minúsculas
+        senha = headers.get('x-api-key', '')
         print(f"Header X-API-Key: {senha}")
 
         if not verificar_senha(senha):
             print("Senha inválida")
             return {
                 'statusCode': 401,
-                'body': json.dumps({'erro': 'Senha inválida'})
+                'body': json.dumps({'erro': 'Senha inválida'}, ensure_ascii=False)
             }
 
-        if http_method == 'GET' and path == '/registros':
+        if http_method == 'GET' and '/registros' in path:
             print("Chamando listar_registros()")
             return listar_registros()
-        elif http_method == 'POST' and path == '/registros':
+        elif http_method == 'POST' and '/registros' in path:
             print("Chamando criar_registro()")
             return criar_registro(json.loads(event.get('body', '{}')))
-        elif http_method == 'DELETE' and path.startswith('/registros/'):
+        elif http_method == 'DELETE' and '/registros' in path:
             subdominio = path.split('/')[-1]
             print(f"Chamando deletar_registro() para subdominio: {subdominio}")
             return deletar_registro(subdominio)
-        elif http_method == 'GET' and path == '/info':
+        elif http_method == 'GET' and '/info' in path:
             print("Chamando obter_info()")
             return obter_info()
         else:
             print("Rota não encontrada")
             return {
                 'statusCode': 404,
-                'body': json.dumps({'erro': 'Rota não encontrada'})
+                'body': json.dumps({'erro': 'Rota não encontrada'}, ensure_ascii=False)
             }
 
     except Exception as e:
         print(f"Erro no lambda_handler: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'erro': str(e)})
+            'body': json.dumps({'erro': str(e)}, ensure_ascii=False)
         }
 
 def listar_registros():
@@ -93,13 +91,13 @@ def listar_registros():
                 'registros': registros,
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID
-            })
+            }, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em listar_registros: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'erro': f'Erro ao listar registros: {str(e)}'})
+            'body': json.dumps({'erro': f'Erro ao listar registros: {str(e)}'}, ensure_ascii=False)
         }
 
 def criar_registro(dados):
@@ -112,7 +110,7 @@ def criar_registro(dados):
             print("Subdomínio ou endereço IP não fornecido")
             return {
                 'statusCode': 400,
-                'body': json.dumps({'erro': 'Subdomínio e endereço IP são obrigatórios'})
+                'body': json.dumps({'erro': 'Subdomínio e endereço IP são obrigatórios'}, ensure_ascii=False)
             }
 
         nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
@@ -155,13 +153,13 @@ def criar_registro(dados):
                 'mensagem': 'Registro criado com sucesso',
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID
-            })
+            }, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em criar_registro: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'erro': f'Erro ao criar registro: {str(e)}'})
+            'body': json.dumps({'erro': f'Erro ao criar registro: {str(e)}'}, ensure_ascii=False)
         }
 
 def deletar_registro(subdominio):
@@ -176,7 +174,7 @@ def deletar_registro(subdominio):
             print("Registro não encontrado no DynamoDB")
             return {
                 'statusCode': 404,
-                'body': json.dumps({'erro': 'Registro não encontrado'})
+                'body': json.dumps({'erro': 'Registro não encontrado'}, ensure_ascii=False)
             }
 
         endereco_ip = response['Item']['endereco_ip']
@@ -216,13 +214,13 @@ def deletar_registro(subdominio):
                 'mensagem': 'Registro deletado com sucesso',
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID
-            })
+            }, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em deletar_registro: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'erro': f'Erro ao deletar registro: {str(e)}'})
+            'body': json.dumps({'erro': f'Erro ao deletar registro: {str(e)}'}, ensure_ascii=False)
         }
 
 def obter_info():
@@ -234,11 +232,11 @@ def obter_info():
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID,
                 'ttl': TTL_DNS
-            })
+            }, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em obter_info: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'erro': f'Erro ao obter informações: {str(e)}'})
+            'body': json.dumps({'erro': f'Erro ao obter informações: {str(e)}'}, ensure_ascii=False)
         }
