@@ -153,6 +153,7 @@ def criar_registro(dados):
             'statusCode': 201,
             'body': json.dumps({
                 'mensagem': 'Registro criado com sucesso',
+                'subdominio': subdominio,
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID
             }, ensure_ascii=False)
