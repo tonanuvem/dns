@@ -1,83 +1,246 @@
-#!/bin/bash
+import json
+import boto3
+import os
+import hashlib
+import hmac
+import base64
+from datetime import datetime
 
-# =======================================================
-# Script para testar os endpoints da API
-#
-# - Este script executa testes automatizados para os verbos GET, POST e DELETE.
-# - Ele cria um subdomínio único a cada execução para evitar conflitos.
-# - O JSON de teste é embutido no próprio script para maior praticidade.
-# =======================================================
+try:
+    # Configuração dos clientes AWS
+    print("Inicializando clientes AWS...")
+    dynamodb = boto3.resource('dynamodb')
+    route53 = boto3.client('route53')
+    table = dynamodb.Table(os.environ['DYNAMODB_TABLE'])
 
-# --- Variáveis de Configuração ---
-# Substitua 'aluno' pela sua chave de API, se for diferente.
-API_KEY="aluno"
-# URL base da sua API Gateway.
-API_URL="https://tsll3rchh7.execute-api.us-east-1.amazonaws.com/prod"
-# URLs completas para os endpoints.
-REGISTROS_URL="$API_URL/registros"
-INFO_URL="$API_URL/info"
-# Cria um subdomínio único usando a data e hora atuais.
-# Isso evita que o teste falhe se você rodar o script várias vezes.
-SUBDOMINIO="teste-api-$(date +%s)"
+    # Configurações
+    SENHA_API = os.environ['SENHA_API']
+    TTL_DNS = int(os.environ['TTL_DNS'])
+    NAMESERVERS = os.environ['NAMESERVERS'].split(',')
+    ZONA_ID = os.environ['ZONA_ID']
+except Exception as e:
+    print(f"Erro ao inicializar configurações ou clientes AWS: {e}")
+    raise
 
-# --- JSON para o teste de POST ---
-# O 'heredoc' (<<EOF) permite definir um bloco de texto JSON no próprio script.
-# A variável "$SUBDOMINIO" é expandida para o valor único que criamos acima.
-read -r -d '' JSON_DATA <<EOF
-{
-  "subdominio": "$SUBDOMINIO",
-  "endereco_ip": "192.0.2.1"
-}
-EOF
+def verificar_senha(senha_fornecida):
+    print(f"Verificando senha fornecida: {senha_fornecida}")
+    return hmac.compare_digest(senha_fornecida, SENHA_API)
 
-echo "========================================"
-echo "Iniciando testes da API..."
-echo "Subdomínio de teste: $SUBDOMINIO"
-echo "========================================"
-echo ""
+def lambda_handler(event, context):
+    print(f"lambda_handler chamado com event: {event}")
+    try:
+        http_method = event.get('httpMethod', '')
+        path = event.get('path', '')
+        print(f"HTTP Method: {http_method}, Path: {path}")
 
-# --- Teste GET /info ---
-# Comando curl:
-# -s: Modo silencioso, suprime a barra de progresso.
-# -i: Inclui os headers da resposta na saída.
-# -H: Adiciona o header 'X-API-Key' para autenticação.
-echo "=> Testando GET /info..."
-curl -s -i -H "X-API-Key: $API_KEY" "$INFO_URL"
+        headers = event.get('headers', {})
+        senha = headers.get('x-api-key', '')
+        print(f"Header X-API-Key: {senha}")
 
-echo ""
-echo "----------------------------------------"
-echo ""
+        if not verificar_senha(senha):
+            print("Senha inválida")
+            return {
+                'statusCode': 401,
+                'body': json.dumps({'erro': 'Senha inválida'}, ensure_ascii=False)
+            }
 
-# --- Teste GET /registros ---
-echo "=> Testando GET /registros..."
-curl -s -i -H "X-API-Key: $API_KEY" "$REGISTROS_URL"
+        if http_method == 'GET' and '/registros' in path:
+            print("Chamando listar_registros()")
+            return listar_registros()
+        elif http_method == 'POST' and '/registros' in path:
+            print("Chamando criar_registro()")
+            return criar_registro(json.loads(event.get('body', '{}')))
+        elif http_method == 'DELETE' and '/registros' in path:
+            subdominio = path.split('/')[-1]
+            print(f"Chamando deletar_registro() para subdominio: {subdominio}")
+            return deletar_registro(subdominio)
+        elif http_method == 'GET' and '/info' in path:
+            print("Chamando obter_info()")
+            return obter_info()
+        else:
+            print("Rota não encontrada")
+            return {
+                'statusCode': 404,
+                'body': json.dumps({'erro': 'Rota não encontrada'}, ensure_ascii=False)
+            }
 
-echo ""
-echo "----------------------------------------"
-echo ""
+    except Exception as e:
+        print(f"Erro no lambda_handler: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'erro': str(e)}, ensure_ascii=False)
+        }
 
-# --- Teste POST /registros ---
-# Comando curl:
-# -X POST: Define o método HTTP como POST.
-# -H "Content-Type: application/json": Informa que o corpo da requisição é JSON.
-# -d "$JSON_DATA": Envia o conteúdo da nossa variável 'JSON_DATA' no corpo da requisição.
-echo "=> Testando POST /registros..."
-echo "JSON a ser enviado: "
-echo "$JSON_DATA"
-curl -s -i -X POST -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" -d "$JSON_DATA" "$REGISTROS_URL"
+def listar_registros():
+    print("Iniciando listar_registros()")
+    try:
+        response = table.scan()
+        print(f"Resposta do DynamoDB scan: {response}")
+        registros = response.get('Items', [])
+        qtd = len(registros)
+        content_range = f"registros 0-{qtd-1}/{qtd}" if qtd > 0 else "registros 0-0/0"
 
-echo ""
-echo "----------------------------------------"
-echo ""
+        print(f"Registros encontrados: {qtd}")
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Range': content_range,
+                'Access-Control-Expose-Headers': 'Content-Range'
+            },
+            'body': json.dumps({
+                'registros': registros,
+                'nameservers': NAMESERVERS,
+                'zona_id': ZONA_ID
+            }, ensure_ascii=False)
+        }
+    except Exception as e:
+        print(f"Erro em listar_registros: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'erro': f'Erro ao listar registros: {str(e)}'}, ensure_ascii=False)
+        }
 
-# --- Teste DELETE /registros/{subdominio} ---
-# Comando curl:
-# -X DELETE: Define o método HTTP como DELETE.
-# A URL utiliza a variável 'SUBDOMINIO' para deletar o registro que acabamos de criar.
-echo "=> Testando DELETE /registros/$SUBDOMINIO..."
-curl -s -i -X DELETE -H "X-API-Key: $API_KEY" "$REGISTROS_URL/$SUBDOMINIO"
+def criar_registro(dados):
+    print(f"Iniciando criar_registro() com dados: {dados}")
+    try:
+        subdominio = dados.get('subdominio')
+        endereco_ip = dados.get('endereco_ip')
 
-echo ""
-echo "========================================"
-echo "Testes concluídos!"
-echo "========================================"
+        if not subdominio or not endereco_ip:
+            print("Subdomínio ou endereço IP não fornecido")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'erro': 'Subdomínio e endereço IP são obrigatórios'}, ensure_ascii=False)
+            }
+
+        #nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+        nome_registro = f'{subdominio}.{NAMESERVERS[0]}'
+
+        print(f"Criando registro no Route53: {nome_registro} -> {endereco_ip}")
+
+        change_batch = {
+            'Changes': [
+                {
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'Name': nome_registro,
+                        'Type': 'A',
+                        'TTL': TTL_DNS,
+                        'ResourceRecords': [
+                            {'Value': endereco_ip}
+                        ]
+                    }
+                }
+            ]
+        }
+
+        route53.change_resource_record_sets(
+            HostedZoneId=ZONA_ID,
+            ChangeBatch=change_batch
+        )
+        print("Registro criado no Route53")
+
+        table.put_item(
+            Item={
+                'alias': subdominio,
+                'endereco_ip': endereco_ip,
+                'data_criacao': datetime.now().isoformat()
+            }
+        )
+        print("Registro salvo no DynamoDB")
+
+        return {
+            'statusCode': 201,
+            'body': json.dumps({
+                'mensagem': 'Registro criado com sucesso',
+                'subdominio': subdominio,
+                'nameservers': NAMESERVERS,
+                'zona_id': ZONA_ID
+            }, ensure_ascii=False)
+        }
+    except Exception as e:
+        print(f"Erro em criar_registro: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'erro': f'Erro ao criar registro: {str(e)}'}, ensure_ascii=False)
+        }
+
+def deletar_registro(subdominio):
+    print(f"Iniciando deletar_registro() para subdominio: {subdominio}")
+    try:
+        response = table.get_item(
+            Key={'alias': subdominio}
+        )
+        print(f"Resposta do DynamoDB get_item: {response}")
+
+        if 'Item' not in response:
+            print("Registro não encontrado no DynamoDB")
+            return {
+                'statusCode': 404,
+                'body': json.dumps({'erro': 'Registro não encontrado'}, ensure_ascii=False)
+            }
+
+        endereco_ip = response['Item']['endereco_ip']
+        nome_registro = f'{subdominio}.{NAMESERVERS[0].split(".")[-2]}.{NAMESERVERS[0].split(".")[-1]}'
+        print(f"Deletando registro no Route53: {nome_registro} -> {endereco_ip}")
+
+        change_batch = {
+            'Changes': [
+                {
+                    'Action': 'DELETE',
+                    'ResourceRecordSet': {
+                        'Name': nome_registro,
+                        'Type': 'A',
+                        'TTL': TTL_DNS,
+                        'ResourceRecords': [
+                            {'Value': endereco_ip}
+                        ]
+                    }
+                }
+            ]
+        }
+
+        route53.change_resource_record_sets(
+            HostedZoneId=ZONA_ID,
+            ChangeBatch=change_batch
+        )
+        print("Registro deletado do Route53")
+
+        table.delete_item(
+            Key={'alias': subdominio}
+        )
+        print("Registro deletado do DynamoDB")
+
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'mensagem': 'Registro deletado com sucesso',
+                'subdominio': subdominio,
+                'nameservers': NAMESERVERS,
+                'zona_id': ZONA_ID
+            }, ensure_ascii=False)
+        }
+    except Exception as e:
+        print(f"Erro em deletar_registro: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'erro': f'Erro ao deletar registro: {str(e)}'}, ensure_ascii=False)
+        }
+
+def obter_info():
+    print("Iniciando obter_info()")
+    try:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'nameservers': NAMESERVERS,
+                'zona_id': ZONA_ID,
+                'ttl': TTL_DNS
+            }, ensure_ascii=False)
+        }
+    except Exception as e:
+        print(f"Erro em obter_info: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'erro': f'Erro ao obter informações: {str(e)}'}, ensure_ascii=False)
+        }
