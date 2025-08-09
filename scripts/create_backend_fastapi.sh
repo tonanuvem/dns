@@ -24,7 +24,7 @@ check_status() {
 # --- Configurações do Projeto FastAPI ---
 # A nova estrutura de arquivos está em /lambda_fastapi
 # Arquivos da aplicação
-APP_FILES=("app.py" "main.py")
+APP_FILES=("app.py" "gerenciador_dns.py")
 # Arquivo de dependências
 REQUIREMENTS_FILE="requirements.txt"
 # Nome do arquivo ZIP final
