@@ -40,7 +40,7 @@ resource "aws_lambda_function" "gerenciador_dns" {
       SENHA_API = var.senha_compartilhada
       TTL_DNS = var.ttl_dns
       NAMESERVERS = var.nome_dominio
-      ZONA_ID = var.nome_dominio
+      ZONA_ID = var.zona_id
     }
   }
 
