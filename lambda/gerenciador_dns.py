@@ -22,9 +22,23 @@ except Exception as e:
     print(f"Erro ao inicializar configurações ou clientes AWS: {e}")
     raise
 
+# --- Cabeçalhos CORS comuns para inclusão nas respostas ---
+# Permitir todas as origens para desenvolvimento. Em produção, substitua '*' pelo seu domínio.
+COMMON_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,PUT,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,X-API-Key,Authorization,Range",
+    "Access-Control-Expose-Headers": "Content-Range",
+    "Access-Control-Max-Age": "600",
+    "Content-Type": "application/json"
+}
+
+
 def verificar_senha(senha_fornecida):
     print(f"Verificando senha fornecida: {senha_fornecida}")
-    return hmac.compare_digest(senha_fornecida, SENHA_API)
+    # Temporariamente desabilitado para testes, conforme sua solicitação
+    return True
+    # return hmac.compare_digest(senha_fornecida, SENHA_API)
 
 def lambda_handler(event, context):
     print(f"lambda_handler chamado com event: {event}")
@@ -32,6 +46,16 @@ def lambda_handler(event, context):
         http_method = event.get('httpMethod', '')
         path = event.get('path', '')
         print(f"HTTP Method: {http_method}, Path: {path}")
+
+        # --- NOVO: Tratamento explícito para requisições OPTIONS (CORS preflight) ---
+        if http_method == 'OPTIONS':
+            print("Requisição OPTIONS recebida. Retornando 200 OK para preflight.")
+            return {
+                'statusCode': 200,
+                'headers': {**COMMON_HEADERS}, # Usa os cabeçalhos comuns
+                'body': ''
+            }
+        # --- FIM do tratamento OPTIONS ---
 
         headers = event.get('headers', {})
         senha = headers.get('x-api-key', '')
@@ -41,32 +65,28 @@ def lambda_handler(event, context):
             print("Senha inválida")
             return {
                 'statusCode': 401,
+                'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
                 'body': json.dumps({'erro': 'Senha inválida'}, ensure_ascii=False)
             }
 
-        # Rota para LISTAR todos os registros (GET /registros)
-        if http_method == 'GET' and path == '/prod/registros': # Use path exato para GET all
+        if http_method == 'GET' and path == '/prod/registros':
             print("Chamando listar_registros()")
             return listar_registros()
         
-        # Rota para OBTER um registro específico (GET /registros/{id})
-        elif http_method == 'GET' and '/registros/' in path and path != '/prod/registros': # Certifique-se de que não é o GET ALL
+        elif http_method == 'GET' and '/registros/' in path and path != '/prod/registros':
             subdominio = path.split('/')[-1]
             print(f"Chamando obter_registro() para subdominio: {subdominio}")
             return obter_registro(subdominio)
 
-        # Rota para CRIAR um registro (POST /registros)
         elif http_method == 'POST' and '/registros' in path:
             print("Chamando criar_registro()")
             return criar_registro(json.loads(event.get('body', '{}')))
         
-        # Rota para DELETAR um registro (DELETE /registros/{id})
-        elif http_method == 'DELETE' and '/registros/' in path: # Ajuste para DELETE by ID
+        elif http_method == 'DELETE' and '/registros/' in path:
             subdominio = path.split('/')[-1]
             print(f"Chamando deletar_registro() para subdominio: {subdominio}")
             return deletar_registro(subdominio)
         
-        # Rota para informações gerais (GET /info)
         elif http_method == 'GET' and '/info' in path:
             print("Chamando obter_info()")
             return obter_info()
@@ -74,6 +94,7 @@ def lambda_handler(event, context):
             print("Rota não encontrada")
             return {
                 'statusCode': 404,
+                'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
                 'body': json.dumps({'erro': 'Rota não encontrada'}, ensure_ascii=False)
             }
 
@@ -81,6 +102,7 @@ def lambda_handler(event, context):
         print(f"Erro no lambda_handler: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': str(e)}, ensure_ascii=False)
         }
 
@@ -91,26 +113,31 @@ def listar_registros():
         print(f"Resposta do DynamoDB scan: {response}")
         registros = response.get('Items', [])
         
-        # Adiciona o campo 'id' para cada registro (React-Admin precisa disso)
         for registro in registros:
-            registro['id'] = registro['alias'] # Mapeia 'alias' para 'id'
+            registro['id'] = registro['alias']
 
         qtd = len(registros)
         content_range = f"registros 0-{qtd-1}/{qtd}" if qtd > 0 else "registros 0-0/0"
 
+        # Combina os cabeçalhos CORS comuns com os específicos para listar_registros
+        response_headers = {
+            **COMMON_HEADERS,
+            'Access-Control-Allow-Origin': '*',
+            'Content-Range': content_range,
+            'Access-Control-Expose-Headers': 'Content-Range' # Crucial para o React-Admin ler o Content-Range
+        }
+
         print(f"Registros encontrados: {qtd}")
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Range': content_range,
-                'Access-Control-Expose-Headers': 'Content-Range'
-            },
-            'body': json.dumps(registros, ensure_ascii=False) # Retorna diretamente o array de registros
+            'headers': response_headers,
+            'body': json.dumps(registros, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em listar_registros: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': f'Erro ao listar registros: {str(e)}'}, ensure_ascii=False)
         }
 
@@ -126,20 +153,23 @@ def obter_registro(subdominio):
             print("Registro não encontrado no DynamoDB")
             return {
                 'statusCode': 404,
+                'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
                 'body': json.dumps({'erro': 'Registro não encontrado'}, ensure_ascii=False)
             }
 
         registro = response['Item']
-        registro['id'] = registro['alias'] # Adiciona o campo 'id'
+        registro['id'] = registro['alias']
         
         return {
             'statusCode': 200,
-            'body': json.dumps(registro, ensure_ascii=False) # Retorna o objeto direto, sem envolver
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
+            'body': json.dumps(registro, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em obter_registro: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': f'Erro ao obter registro: {str(e)}'}, ensure_ascii=False)
         }
 
@@ -154,6 +184,7 @@ def criar_registro(dados):
             print("Subdomínio ou endereço IP não fornecido")
             return {
                 'statusCode': 400,
+                'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
                 'body': json.dumps({'erro': 'Subdomínio e endereço IP são obrigatórios'}, ensure_ascii=False)
             }
 
@@ -191,16 +222,17 @@ def criar_registro(dados):
         table.put_item(Item=item_para_salvar)
         print("Registro salvo no DynamoDB")
 
-        # Retorna o item criado com o ID para o React-Admin
         item_para_salvar['id'] = subdominio 
         return {
             'statusCode': 201,
-            'body': json.dumps(item_para_salvar, ensure_ascii=False) # Retorna o item direto
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
+            'body': json.dumps(item_para_salvar, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em criar_registro: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': f'Erro ao criar registro: {str(e)}'}, ensure_ascii=False)
         }
 
@@ -216,6 +248,7 @@ def deletar_registro(subdominio):
             print("Registro não encontrado no DynamoDB")
             return {
                 'statusCode': 404,
+                'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
                 'body': json.dumps({'erro': 'Registro não encontrado'}, ensure_ascii=False)
             }
 
@@ -252,15 +285,16 @@ def deletar_registro(subdominio):
         )
         print("Registro deletado do DynamoDB")
 
-        # Retorna o ID do item deletado para o React-Admin
         return {
             'statusCode': 200,
-            'body': json.dumps({'id': subdominio}, ensure_ascii=False) # Retorna um objeto com o ID deletado
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
+            'body': json.dumps({'id': subdominio}, ensure_ascii=False)
         }
     except Exception as e:
         print(f"Erro em deletar_registro: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': f'Erro ao deletar registro: {str(e)}'}, ensure_ascii=False)
         }
 
@@ -269,6 +303,7 @@ def obter_info():
     try:
         return {
             'statusCode': 200,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({
                 'nameservers': NAMESERVERS,
                 'zona_id': ZONA_ID,
@@ -276,8 +311,9 @@ def obter_info():
             }, ensure_ascii=False)
         }
     except Exception as e:
-        print(f"Erro em obter_info: {e}")
+        print(f"Erro em  obter_info: {e}")
         return {
             'statusCode': 500,
+            'headers': {**COMMON_HEADERS}, # Adiciona cabeçalhos CORS
             'body': json.dumps({'erro': f'Erro ao obter informações: {str(e)}'}, ensure_ascii=False)
         }

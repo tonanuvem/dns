@@ -2,11 +2,13 @@
 resource "aws_apigatewayv2_api" "api" {
   name          = "api-gerenciador-dns"
   protocol_type = "HTTP"
+
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PUT", "DELETE"]
-    allow_headers = ["Content-Type", "Authorization"]
-    max_age      = 300
+    allow_origins  = ["*"]
+    allow_methods  = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers  = ["Content-Type", "Authorization", "Range", "X-Api-Key"]
+    expose_headers = ["Content-Range"]
+    max_age        = 300
   }
 
   tags = var.api_gateway_tags
@@ -32,8 +34,8 @@ resource "aws_apigatewayv2_route" "lambda_route" {
 
 # Stage da API Gateway
 resource "aws_apigatewayv2_stage" "lambda_stage" {
-  api_id = aws_apigatewayv2_api.api.id
-  name   = "prod"
+  api_id      = aws_apigatewayv2_api.api.id
+  name        = "prod"
   auto_deploy = true
 
   tags = var.api_gateway_tags
