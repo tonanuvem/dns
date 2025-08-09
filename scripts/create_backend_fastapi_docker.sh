@@ -25,7 +25,7 @@ LAMBDA_APP_DIR="lambda_fastapi"
 # Diretório temporário para a construção do pacote
 BUILD_DIR="lambda_build"
 # Nome do arquivo ZIP final
-ZIP_FILE="lambda_function.zip"
+ZIP_FILE="fastapi_lambda_function.zip"
 # Diretório de destino do ZIP
 ZIP_OUTPUT_MODULE_DIR="terraform/modules/lambda_api"
 
