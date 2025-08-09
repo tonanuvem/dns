@@ -24,3 +24,8 @@ variable "api_gateway_id_zona_hospedada" {
   description = "Zona recebido do modulo main"
   type        = string
 }
+
+variable "api_gateway_lambda_function_name" {
+  description = "Nome da função Lambda"
+  type        = string
+}

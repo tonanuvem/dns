@@ -2,7 +2,6 @@
 resource "aws_apigatewayv2_api" "api" {
   name          = "api-gerenciador-dns"
   protocol_type = "HTTP"
-
   cors_configuration {
     allow_origins  = ["*"]
     allow_methods  = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -10,15 +9,13 @@ resource "aws_apigatewayv2_api" "api" {
     expose_headers = ["Content-Range"]
     max_age        = 300
   }
-
   tags = var.api_gateway_tags
 }
 
 # Integração da API Gateway com a função Lambda
 resource "aws_apigatewayv2_integration" "lambda_integration" {
-  api_id           = aws_apigatewayv2_api.api.id
-  integration_type = "AWS_PROXY"
-
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
   connection_type    = "INTERNET"
   description        = "Lambda integration"
   integration_method = "POST"
@@ -37,11 +34,19 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
   api_id      = aws_apigatewayv2_api.api.id
   name        = "prod"
   auto_deploy = true
-
-  tags = var.api_gateway_tags
+  tags        = var.api_gateway_tags
 }
 
-# Certificado ACM para a API
+# Permissão para a API Gateway invocar a função Lambda
+resource "aws_lambda_permission" "api_gw" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.api_gateway_lambda_function_name  # Recebe via variável
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# Certificado ACM para a API (comentado conforme seu código)
 # resource "aws_acm_certificate" "api" {
 #   domain_name       = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
 #   validation_method = "DNS"
@@ -55,13 +60,13 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
 #   })
 # }
 
-# Validação do certificado
+# Validação do certificado (comentado conforme seu código)
 # resource "aws_acm_certificate_validation" "api" {
 #   certificate_arn         = aws_acm_certificate.api.arn
 #   validation_record_fqdns = [for record in aws_acm_certificate.api.domain_validation_options : record.resource_record_name]
 # }
 
-# Domínio personalizado da API
+# Domínio personalizado da API (comentado conforme seu código)
 # resource "aws_apigatewayv2_domain_name" "api" {
 #   domain_name = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
 #
@@ -74,14 +79,14 @@ resource "aws_apigatewayv2_stage" "lambda_stage" {
 #   tags = var.api_gateway_tags
 # }
 
-# Mapeamento da API para o domínio personalizado
+# Mapeamento da API para o domínio personalizado (comentado conforme seu código)
 # resource "aws_apigatewayv2_api_mapping" "api" {
 #   api_id      = aws_apigatewayv2_api.api.id
 #   domain_name = aws_apigatewayv2_domain_name.api.domain_name
 #   stage       = aws_apigatewayv2_stage.lambda_stage.id
 # }
 
-# Registro DNS para a API
+# Registro DNS para a API (comentado conforme seu código)
 # resource "aws_route53_record" "api" {
 #   name    = aws_apigatewayv2_domain_name.api.domain_name
 #   type    = "A"

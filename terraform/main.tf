@@ -47,6 +47,7 @@ module "api_gateway" {
   source = "./modules/api_gateway"
 
   api_gateway_lambda_invoke_arn = module.lambda_api.lambda_invoke_arn
+  api_gateway_lambda_function_name = module.lambda_api.lambda_function_name
   api_gateway_nome_aluno        = var.nome_aluno
   api_gateway_nome_dominio      = var.nome_dominio
   api_gateway_tags              = var.tags
@@ -60,14 +61,15 @@ module "api_gateway" {
 # - Bucket S3 para hospedagem estática
 # - Distribuição CloudFront para CDN
 # - Certificado SSL para HTTPS
-module "frontend" {
-  source = "./modules/frontend"
 
-  frontend_nome_aluno   = var.nome_aluno
-  frontend_nome_dominio = var.nome_dominio
-  frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
-  frontend_tags         = var.tags
-}
+# module "frontend" {
+#   source = "./modules/frontend"
+
+#   frontend_nome_aluno   = var.nome_aluno
+#   frontend_nome_dominio = var.nome_dominio
+#   frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
+#   frontend_tags         = var.tags
+# }
 
 # =============================================
 # Fluxo 4: DNS (Dependente do Frontend e API Gateway)
@@ -75,23 +77,24 @@ module "frontend" {
 # O módulo DNS é dependente e fornece:
 # - Registros DNS para API Gateway
 # - Registros DNS para Frontend
-module "dns" {
-  source = "./modules/dns"
 
-  dns_nome_aluno = var.nome_aluno
-  dns_zone_id = data.aws_route53_zone.selecionada.zone_id
+# module "dns" {
+#   source = "./modules/dns"
+
+#   dns_nome_aluno = var.nome_aluno
+#   dns_zone_id = data.aws_route53_zone.selecionada.zone_id
   
-  # Valores do API Gateway
-  # dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
-  # dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
+#   # Valores do API Gateway
+#   # dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
+#   # dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
   
-  # Valores do Frontend
-  dns_frontend_domain = module.frontend.frontend_domain_name
-  dns_frontend_domain_zone_id = module.frontend.frontend_domain_zone_id
-  dns_frontend_website_endpoint = module.frontend.frontend_website_endpoint
+#   # Valores do Frontend
+#   dns_frontend_domain = module.frontend.frontend_domain_name
+#   dns_frontend_domain_zone_id = module.frontend.frontend_domain_zone_id
+#   dns_frontend_website_endpoint = module.frontend.frontend_website_endpoint
   
-  dns_tags = var.tags
-}
+#   dns_tags = var.tags
+# }
 
 # =============================================
 # Recursos Adicionais
