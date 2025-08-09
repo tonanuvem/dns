@@ -98,14 +98,14 @@ module "dns" {
 # =============================================
 
 # Criar zona hospedada para o aluno
-resource "aws_route53_zone" "zona_aluno" {
-  name = "${var.nome_aluno}.${var.nome_dominio}"
-  comment = "Zona hospedada para ${var.nome_aluno}"
+# resource "aws_route53_zone" "zona_aluno" {
+#   name = "${var.nome_aluno}.${var.nome_dominio}"
+#   comment = "Zona hospedada para ${var.nome_aluno}"
   
-  tags = merge(var.tags, {
-    Aluno = var.nome_aluno
-  })
-}
+#   tags = merge(var.tags, {
+#     Aluno = var.nome_aluno
+#   })
+# }
 
 # Removi a tabela DynamoDB do root, pois agora está no módulo lambda_api.
 
