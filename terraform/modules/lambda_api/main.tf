@@ -27,6 +27,7 @@ data "archive_file" "lambda_zip" {
 # Função Lambda
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = data.archive_file.lambda_zip.output_path
+  # filename = "${path.module}/fastapi_lambda_function.zip"
   function_name    = "gerenciador-dns-${var.lambda_nome_aluno}"
   role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
   handler         = "gerenciador_dns.lambda_handler"
