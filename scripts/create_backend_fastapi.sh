@@ -28,7 +28,7 @@ APP_FILES=("app.py" "main.py")
 # Arquivo de dependências
 REQUIREMENTS_FILE="requirements.txt"
 # Nome do arquivo ZIP final
-ZIP_FILE="lambda_function.zip"
+ZIP_FILE="fastapi_lambda_function.zip"
 
 # Obter o diretório base do projeto
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
