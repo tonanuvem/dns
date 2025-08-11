@@ -86,14 +86,14 @@ resource "null_resource" "build_frontend" {
 
     # ✅ Adicionado: Comandos de debug para verificar o diretório e o script
     command = <<EOT
-      echo "--- Debugging local-exec ---"
-      echo "Current working directory:"
-      pwd
-      echo "Contents of scripts/ directory:"
-      ls -l scripts/
-      echo "Attempting to execute script:"
+      # echo "--- Debugging local-exec ---"
+      # echo "Current working directory:"
+      # pwd
+      # echo "Contents of scripts/ directory:"
+      # ls -l scripts/
+      # echo "Attempting to execute script:"
       bash ./scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}
-      echo "--- End Debugging ---"
+      # echo "--- End Debugging ---"
     EOT
   }
 }
