@@ -52,6 +52,10 @@ module "api_gateway" {
   api_gateway_nome_dominio      = var.nome_dominio
   api_gateway_tags              = var.tags
   api_gateway_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
+
+  # Se você estiver criando uma API Key via Terraform, ela deve ser um output do seu módulo api_gateway.
+  # Por exemplo, se seu módulo api_gateway tivesse um output chamado 'api_key_value':
+  # api_key_value = module.api_gateway.api_key_value
 }
 
 # =============================================
@@ -62,14 +66,23 @@ module "api_gateway" {
 # - Distribuição CloudFront para CDN
 # - Certificado SSL para HTTPS
 
-# module "frontend" {
-#   source = "./modules/frontend"
+module "frontend" {
+  source = "./modules/frontend"
 
-#   frontend_nome_aluno   = var.nome_aluno
-#   frontend_nome_dominio = var.nome_dominio
-#   frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
-#   frontend_tags         = var.tags
-# }
+  frontend_nome_aluno        = var.nome_aluno
+  frontend_nome_dominio      = var.nome_dominio
+  frontend_id_zona_hospedada = data.aws_route53_zone.selecionada.zone_id
+  frontend_tags              = var.tags
+
+  # Passa os outputs da API Gateway para o módulo frontend
+  # Estes são os valores que serão injetados no build do React-Admin
+  api_gateway_invoke_url = aws_apigatewayv2_stage.lambda_stage.invoke_url
+  # Se você estiver criando a API Key via Terraform, use o output correspondente.
+  # Exemplo: api_key_value = aws_apigatewayv2_api_key.api_key.value
+  # Se a API Key for gerenciada manualmente ou via variável, passe-a aqui:
+  api_key_value          = var.senha_compartilhada
+  api_gateway_stage_id   = aws_apigatewayv2_stage.lambda_stage.id # Passa o ID do stage para dependência
+}
 
 # =============================================
 # Fluxo 4: DNS (Dependente do Frontend e API Gateway)

@@ -25,3 +25,21 @@ variable "enable_https" {
   type        = bool
   default     = false
 }
+
+# --- Novas variáveis para a API Gateway ---
+variable "api_gateway_invoke_url" {
+  description = "URL de invocação da API Gateway para o backend."
+  type        = string
+}
+
+variable "api_key_value" {
+  description = "Valor da API Key para autenticação com o backend."
+  type        = string
+  sensitive   = true # Marque como sensível para não exibir no output do plan/apply
+}
+
+# Variável para depender do stage da API Gateway (para garantir que a API esteja implantada)
+variable "api_gateway_stage_id" {
+  description = "O ID do stage da API Gateway para criar uma dependência explícita."
+  type        = string
+}

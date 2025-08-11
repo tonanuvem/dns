@@ -26,8 +26,28 @@ BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # --- Configurações do Frontend ---
 FRONTEND_DIR="dns_admin" # Diretório do seu projeto frontend
-BUILD_OUTPUT_DIR="build" # ✅ Ajustado: O Vite gera o build na pasta 'build' por padrão
+BUILD_OUTPUT_DIR="build" # O Vite gera o build na pasta 'build' por padrão
 TERRAFORM_DEST_DIR="$BASE_DIR/terraform/frontend_build"
+
+# --- Novas Variáveis para a API (passadas como argumentos) ---
+API_URL=""
+API_KEY=""
+
+# Processar argumentos de linha de comando
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        --api-url) API_URL="$2"; shift ;;
+        --api-key) API_KEY="$2"; shift ;;
+        *) echo "Uso: $0 --api-url <URL> --api-key <KEY>"; exit 1 ;;
+    esac
+    shift
+done
+
+# Validação das variáveis da API
+if [ -z "$API_URL" ] || [ -z "$API_KEY" ]; then
+    print_message "Erro: --api-url e --api-key são obrigatórios." "$RED"
+    exit 1
+fi
 
 # --- Validações Iniciais ---
 # Verificar se o Node.js está instalado
@@ -53,6 +73,12 @@ print_message "Navegando para o diretório do frontend: $FRONTEND_DIR" "$YELLOW"
 cd "$BASE_DIR/$FRONTEND_DIR"
 check_status "Diretório do frontend acessado com sucesso." "Erro ao acessar o diretório do frontend."
 
+# --- Geração do arquivo .env ---
+print_message "Gerando arquivo .env para o frontend..." "$YELLOW"
+echo "VITE_API_URL=$API_URL" > .env
+echo "VITE_API_KEY=$API_KEY" >> .env
+check_status "Arquivo .env gerado com sucesso." "Erro ao gerar arquivo .env."
+
 # --- Processo de Build do Frontend ---
 
 # Instalar dependências com Yarn
@@ -60,7 +86,7 @@ print_message "Instalando dependências do frontend com Yarn..." "$YELLOW"
 yarn install
 check_status "Dependências instaladas com sucesso." "Erro ao instalar dependências com Yarn."
 
-# Criar build do frontend com Yarn
+# Criar build de produção do frontend com Yarn
 print_message "Criando build de produção do frontend com Yarn..." "$YELLOW"
 yarn build
 check_status "Build do frontend criado com sucesso." "Erro ao criar build do frontend com Yarn."

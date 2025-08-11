@@ -10,7 +10,8 @@ output "frontend_bucket_arn" {
 
 output "frontend_domain_name" {
   description = "Nome de domínio do frontend"
-  value       = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
+  # O nome de domínio completo que será usado para acessar o site (via CNAME)
+  value       = "www.${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
 }
 
 output "frontend_domain_zone_id" {
@@ -19,8 +20,8 @@ output "frontend_domain_zone_id" {
 }
 
 output "frontend_url" {
-  description = "URL do frontend"
-  value       = "http://frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
+  description = "URL do frontend (via CNAME)"
+  value       = "http://www.${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
 }
 
 output "frontend_website_endpoint" {
