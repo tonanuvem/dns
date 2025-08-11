@@ -80,11 +80,21 @@ resource "null_resource" "build_frontend" {
 
   # Provisioner local-exec para executar o script Bash
   provisioner "local-exec" {
-    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para scripts/
-    command = "bash ${path.root}/../scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}"
     # O working_dir deve ser a raiz do seu projeto Terraform (o diretório 'dns'),
     # para que os caminhos internos do script create_frontend_yarn.sh funcionem corretamente.
     working_dir = "${path.root}/.."
+
+    # ✅ Adicionado: Comandos de debug para verificar o diretório e o script
+    command = <<EOT
+      echo "--- Debugging local-exec ---"
+      echo "Current working directory:"
+      pwd
+      echo "Contents of scripts/ directory:"
+      ls -l scripts/
+      echo "Attempting to execute script:"
+      bash ./scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}
+      echo "--- End Debugging ---"
+    EOT
   }
 }
 
