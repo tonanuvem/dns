@@ -23,9 +23,12 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   error_document {
     key = "index.html"
   }
+
+  # Garantir que seja criado após o bucket
+  depends_on = [aws_s3_bucket.frontend]
 }
 
-# Bloqueio de acesso público ao bucket (para garantir que seja acessível como website)
+# ✅ CORREÇÃO CRÍTICA: Bloqueio de acesso público ao bucket PRIMEIRO
 # Necessário para permitir acesso público de website
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
@@ -34,9 +37,18 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   block_public_policy     = false
   ignore_public_acls      = false
   restrict_public_buckets = false
+
+  # Garantir que seja criado após o bucket
+  depends_on = [aws_s3_bucket.frontend]
 }
 
-# Política de bucket para permitir leitura pública dos objetos
+# ✅ NOVO: Recurso para aguardar a propagação das configurações do S3
+resource "time_sleep" "wait_for_s3_block_config" {
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+  create_duration = "15s"
+}
+
+# ✅ CORREÇÃO CRÍTICA: Política de bucket DEPOIS do bloqueio estar configurado
 resource "aws_s3_bucket_policy" "frontend_public_read" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -51,8 +63,12 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
       }
     ]
   })
-  # ✅ Adicionado: Garante que o bloco de acesso público seja aplicado antes da política
-  depends_on = [aws_s3_bucket_public_access_block.frontend]
+  
+  # ✅ CORREÇÃO: Dependências explícitas para garantir ordem correta
+  depends_on = [
+    aws_s3_bucket_public_access_block.frontend,
+    time_sleep.wait_for_s3_block_config
+  ]
 }
 
 # Recurso nulo para executar o script de build do frontend
@@ -90,8 +106,8 @@ resource "null_resource" "build_frontend" {
   }
 }
 
-# Upload dos arquivos do build para o S3
-resource "aws_s3_bucket_object" "frontend_assets" {
+# ✅ CORREÇÃO: Mudança de aws_s3_bucket_object para aws_s3_object (resource não depreciado)
+resource "aws_s3_object" "frontend_assets" {
   # ✅ CORREÇÃO: Ajuste do caminho para a pasta 'frontend_build'.
   # path.module é 'terraform/modules/frontend'
   # A pasta de build está em 'terraform/frontend_build' (relativo à raiz do projeto)
@@ -106,8 +122,11 @@ resource "aws_s3_bucket_object" "frontend_assets" {
   content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
   acl      = "public-read"
 
-  # Garante que o upload só ocorra após o build do frontend ser concluído
-  depends_on = [null_resource.build_frontend]
+  # ✅ CORREÇÃO: Garantir que a política esteja aplicada antes do upload
+  depends_on = [
+    null_resource.build_frontend,
+    aws_s3_bucket_policy.frontend_public_read
+  ]
 }
 
 # Mime types para o upload (para que o navegador interprete corretamente os arquivos)
@@ -136,6 +155,9 @@ resource "aws_route53_record" "frontend" {
   ttl     = 60
   records = [aws_s3_bucket_website_configuration.frontend.website_endpoint]
 
-  # Garante que o registro DNS só seja criado após o bucket ser configurado como website
-  depends_on = [aws_s3_bucket_website_configuration.frontend]
+  # ✅ CORREÇÃO: Dependências mais explícitas
+  depends_on = [
+    aws_s3_bucket_website_configuration.frontend,
+    aws_s3_bucket_policy.frontend_public_read
+  ]
 }
