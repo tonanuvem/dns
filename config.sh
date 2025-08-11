@@ -187,8 +187,8 @@ deactivate
 
 echo -e "\nConfiguração concluída com sucesso!"
 echo -e "\nPróximos passos:"
-echo "1. Execute ./criar.sh para criar o build do backend e frontend"
-#echo "2. Execute ./scripts/deploy.sh para fazer o deploy da infraestrutura"
+#echo "1. Execute ./criar.sh para criar o build do backend e frontend"
+echo "- Execute ./scripts/deploy.sh para fazer o deploy da infraestrutura"
 echo ""
 echo "Após o deploy, você poderá acessar:"
 echo "- Frontend: https://www.${1}.lab.tonanuvem.com"
