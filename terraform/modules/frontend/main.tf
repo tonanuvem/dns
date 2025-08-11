@@ -51,12 +51,14 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
       }
     ]
   })
+  # ✅ Adicionado: Garante que o bloco de acesso público seja aplicado antes da política
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
 }
 
 # Recurso nulo para executar o script de build do frontend
 # Ele depende da API Gateway para garantir que a URL e a chave existam
 resource "null_resource" "build_frontend" {
-  # Garante que este recurso só seja executado após a API Gateway estar pronta
+  # Garante que este recurso só seja executado após o API Gateway estar pronta
   # e que suas variáveis de output (como a URL) estejam disponíveis.
   # Substitua 'api_gateway_module' pelo nome real do módulo da sua API Gateway
   # no seu main.tf raiz, se ele tiver outputs que você precisa.
@@ -70,15 +72,16 @@ resource "null_resource" "build_frontend" {
     api_key = var.api_key_value
     # Adicione um hash do conteúdo do diretório frontend para que o build seja refeito
     # se qualquer arquivo do frontend mudar. Isso garante que o build seja sempre atualizado.
-    frontend_content_hash = filemd5("${path.root}/dns_admin/package.json") # Exemplo: usa package.json
-    # Você pode adicionar mais arquivos ou um hash do diretório inteiro se quiser:
-    # frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/dns_admin", "**") : filemd5("${path.root}/dns_admin/${f}")]))
+    # Usando path.root para construir o caminho relativo ao diretório do projeto
+    # frontend_content_hash = filemd5("${path.root}/dns_admin/package.json")
+    # ✅ Ativado: Hash do diretório inteiro para refazer o build em qualquer mudança de arquivo
+    frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/dns_admin", "**") : filemd5("${path.root}/dns_admin/${f}")]))
   }
 
   # Provisioner local-exec para executar o script Bash
   provisioner "local-exec" {
-    # O comando chama seu script de build, passando a URL da API e a API Key
-    command = "${path.root}/scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}"
+    # ✅ Ajustado: Chama o script explicitamente com 'bash' para evitar erros de 'not found'
+    command = "bash ${path.root}/scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}"
     # O working_dir deve ser a raiz do seu projeto Terraform, onde o script está localizado
     working_dir = "${path.root}"
   }
