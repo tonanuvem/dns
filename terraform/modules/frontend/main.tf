@@ -60,8 +60,6 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
 resource "null_resource" "build_frontend" {
   # Garante que este recurso só seja executado após o API Gateway estar pronta
   # e que suas variáveis de output (como a URL) estejam disponíveis.
-  # Substitua 'api_gateway_module' pelo nome real do módulo da sua API Gateway
-  # no seu main.tf raiz, se ele tiver outputs que você precisa.
   depends_on = [
     var.api_gateway_stage_id # Depende do stage da API Gateway para garantir que a API esteja implantada
   ]
@@ -70,21 +68,15 @@ resource "null_resource" "build_frontend" {
   triggers = {
     api_url = var.api_gateway_invoke_url
     api_key = var.api_key_value
-    # Adicione um hash do conteúdo do diretório frontend para que o build seja refeito
-    # se qualquer arquivo do frontend mudar. Isso garante que o build seja sempre atualizado.
-    # Usando path.root para construir o caminho relativo ao diretório do projeto
-    frontend_content_hash = filemd5("${path.root}/../dns_admin/package.json")
-    # ✅ Ativado: Hash do diretório inteiro para refazer o build em qualquer mudança de arquivo
-    frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/../dns_admin", "**") : filemd5("${path.root}/../dns_admin/${f}")]))
+    # ✅ CORREÇÃO: Ajuste o caminho para a pasta do código-fonte da sua aplicação React.
+    # Substitua `../frontend_app` pelo caminho correto.
+    frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/../frontend_app", "**") : filemd5("${path.root}/../frontend_app/${f}")]))
   }
 
   # Provisioner local-exec para executar o script Bash
   provisioner "local-exec" {
-    # O working_dir deve ser a raiz do seu projeto Terraform (o diretório 'dns'),
-    # para que os caminhos internos do script create_frontend_yarn.sh funcionem corretamente.
     working_dir = "${path.root}/.."
 
-    # ✅ Adicionado: Comandos de debug para verificar o diretório e o script
     command = <<EOT
       # echo "--- Debugging local-exec ---"
       # echo "Current working directory:"
@@ -100,15 +92,17 @@ resource "null_resource" "build_frontend" {
 
 # Upload dos arquivos do build para o S3
 resource "aws_s3_bucket_object" "frontend_assets" {
-  # ✅ CORREÇÃO 2: Ajuste do caminho para o diretório 'build' dentro de 'frontend_build'
+  # ✅ CORREÇÃO: Ajuste do caminho para a pasta 'frontend_build'.
   # path.module é 'terraform/modules/frontend'
-  # O build está em 'terraform/frontend_build/build' (relativo à raiz do projeto)
-  # Então, de path.module, precisamos subir dois níveis (../..) e descer para frontend_build/build
-  for_each = fileset("${path.module}/../../frontend_build/build", "**")
+  # A pasta de build está em 'terraform/frontend_build' (relativo à raiz do projeto)
+  for_each = fileset("${path.module}/../../frontend_build", "**")
+  
   bucket   = aws_s3_bucket.frontend.id
   key      = each.value
-  source   = "${path.module}/../../frontend_build/build/${each.value}"
-  etag     = filemd5("${path.module}/../../frontend_build/build/${each.value}")
+  # ✅ CORREÇÃO: O caminho da 'source' também foi corrigido.
+  source   = "${path.module}/../../frontend_build/${each.value}"
+  
+  etag     = filemd5("${path.module}/../../frontend_build/${each.value}")
   content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
   acl      = "public-read"
 
