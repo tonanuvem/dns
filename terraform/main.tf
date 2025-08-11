@@ -76,12 +76,12 @@ module "frontend" {
 
   # Passa os outputs da API Gateway para o módulo frontend
   # Estes são os valores que serão injetados no build do React-Admin
-  api_gateway_invoke_url = aws_apigatewayv2_stage.lambda_stage.invoke_url
+  api_gateway_invoke_url = module.api_gateway.api_invoke_url
   # Se você estiver criando a API Key via Terraform, use o output correspondente.
   # Exemplo: api_key_value = aws_apigatewayv2_api_key.api_key.value
   # Se a API Key for gerenciada manualmente ou via variável, passe-a aqui:
   api_key_value          = var.senha_compartilhada
-  api_gateway_stage_id   = aws_apigatewayv2_stage.lambda_stage.id # Passa o ID do stage para dependência
+  api_gateway_stage_id   = module.api_gateway.api_stage_id # Passa o ID do stage para dependência
 }
 
 # =============================================
