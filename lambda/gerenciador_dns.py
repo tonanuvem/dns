@@ -36,7 +36,7 @@ COMMON_HEADERS = {
 
 def verificar_senha(senha_fornecida):
     print(f"Verificando senha fornecida: {senha_fornecida}")
-    # Temporariamente desabilitado para testes, conforme sua solicitação
+    # Temporariamente desabilitado para testes
     return True
     # return hmac.compare_digest(senha_fornecida, SENHA_API)
 
