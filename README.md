@@ -40,12 +40,7 @@ Este script irá:
 
 O backend é uma função Lambda em Python que gerencia os registros DNS.
 
-Para criar o build do backend:
-```bash
-./criar.sh
-```
-
-Este script irá:
+Este projeto irá:
 - Criar o arquivo ZIP da função Lambda
 - Criar o build do frontend
 - Verificar se todos os arquivos necessários foram criados
@@ -53,11 +48,6 @@ Este script irá:
 ### Frontend
 
 O frontend é uma aplicação React que permite aos alunos gerenciar seus aliases DNS.
-
-Para atualizar o frontend após alterações:
-```bash
-./scripts/update_frontend.sh
-```
 
 ## Deploy
 
@@ -81,9 +71,6 @@ Este script irá:
 ├── lambda/               # Código da função Lambda
 ├── frontend/            # Código do frontend
 ├── scripts/             # Scripts auxiliares
-│   ├── configurar_aluno.py
-│   ├── create_frontend.sh
-│   ├── update_frontend.sh
 │   └── deploy.sh
 └── terraform/           # Código Terraform
     ├── main.tf
