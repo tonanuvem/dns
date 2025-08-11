@@ -62,7 +62,7 @@ check_status "Arquivo gerenciador_dns.py encontrado no ZIP" "Arquivo gerenciador
 
 # Criar build do frontend
 print_message "Criando build do frontend..." "$YELLOW"
-"$BASE_DIR/scripts/create_frontend.sh"
+"$BASE_DIR/scripts/create_frontend_yarn.sh"
 check_status "Build do frontend criado com sucesso" "Erro ao criar build do frontend"
 
 print_message "Build do backend e frontend concluído com sucesso!" "$GREEN"

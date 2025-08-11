@@ -26,7 +26,7 @@ BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # --- Configurações do Frontend ---
 FRONTEND_DIR="dns_admin" # Diretório do seu projeto frontend
-BUILD_OUTPUT_DIR="dist"  # Geralmente 'dist' para projetos Vite/Yarn, ou 'build' se configurado
+BUILD_OUTPUT_DIR="build" # ✅ Ajustado: O Vite gera o build na pasta 'build' por padrão
 TERRAFORM_DEST_DIR="$BASE_DIR/terraform/frontend_build"
 
 # --- Validações Iniciais ---
