@@ -12,6 +12,29 @@ resource "aws_s3_bucket" "frontend" {
   tags = var.frontend_tags
 }
 
+# ✅ NOVA CORREÇÃO: Configuração explícita de ACL do bucket
+resource "aws_s3_bucket_acl" "frontend" {
+  bucket     = aws_s3_bucket.frontend.id
+  acl        = "public-read"
+  
+  depends_on = [
+    aws_s3_bucket.frontend,
+    aws_s3_bucket_public_access_block.frontend,
+    aws_s3_bucket_ownership_controls.frontend
+  ]
+}
+
+# ✅ NOVA CORREÇÃO: Configuração de ownership controls para permitir ACLs
+resource "aws_s3_bucket_ownership_controls" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+
+  depends_on = [aws_s3_bucket.frontend]
+}
+
 # Configuração do bucket como website
 resource "aws_s3_bucket_website_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
@@ -44,7 +67,10 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 
 # ✅ NOVO: Recurso para aguardar a propagação das configurações do S3
 resource "time_sleep" "wait_for_s3_block_config" {
-  depends_on = [aws_s3_bucket_public_access_block.frontend]
+  depends_on = [
+    aws_s3_bucket_public_access_block.frontend,
+    aws_s3_bucket_ownership_controls.frontend
+  ]
   create_duration = "15s"
 }
 
@@ -120,7 +146,8 @@ resource "aws_s3_object" "frontend_assets" {
   
   etag     = filemd5("${path.module}/../../frontend_build/${each.value}")
   content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
-  acl      = "public-read"
+  # ✅ CORREÇÃO CRÍTICA: Removido ACL - não é mais necessário com a política de bucket
+  # acl      = "public-read"  # ← Esta linha causa o erro
 
   # ✅ CORREÇÃO: Garantir que a política esteja aplicada antes do upload
   depends_on = [
