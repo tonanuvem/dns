@@ -186,7 +186,7 @@ check_status "ID da zona hospedada atualizado com sucesso" "Falha ao atualizar I
 deactivate
 
 echo -e "\nConfiguração concluída com sucesso!"
-echo -e "\nPróximos passos:"
+echo -e "\nPróximo passo:"
 #echo "1. Execute ./criar.sh para criar o build do backend e frontend"
 echo "- Execute ./scripts/deploy.sh para fazer o deploy da infraestrutura"
 echo ""
