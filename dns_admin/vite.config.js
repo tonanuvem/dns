@@ -12,7 +12,7 @@ export default defineConfig({
     allowedHosts: [
       'localhost', // Sempre bom ter localhost
       '127.0.0.1', // E o IP local
-      'testeapi.aluno.lab.tonanuvem.com', // Seu subdomínio específico
+      'teste-api.aluno.lab.tonanuvem.com', // Seu subdomínio específico
       'aluno.lab.tonanuvem.com' // Se você também acessar a raiz desse subdomínio
     ]
   },

@@ -71,16 +71,18 @@ check_status "Código da aplicação copiado." "Erro ao copiar código da aplica
 # Instalar dependências usando Docker
 print_message "Instalando dependências Python em ambiente Docker compatível com Lambda..." "$YELLOW"
 docker run --rm \
+    --entrypoint /bin/bash \
+    --user "$(id -u):$(id -g)" \
     -v "$FULL_BUILD_PATH":/var/task \
     public.ecr.aws/lambda/python:3.9 \
-    /bin/bash -c "pip install -r /var/task/requirements.txt -t /var/task/python && rm -rf /var/task/requirements.txt"
+    -c "mkdir -p /var/task/python && python -m pip install -r /var/task/requirements.txt -t /var/task/python"
 check_status "Dependências instaladas via Docker." "Erro ao instalar dependências via Docker."
 
-# Mover as dependências para a raiz do pacote (se pip instalou em /python)
-# O comando pip install -t /var/task/python já coloca as libs em /var/task/python
-# e o zip abaixo irá incluir essa pasta python no raiz do zip.
-# Se você quiser que as libs estejam na raiz do zip, você precisaria mover o conteúdo de /var/task/python para /var/task
-# Ex: mv /var/task/python/* /var/task/ && rm -rf /var/task/python
+# Remove requirements.txt AFTER pip install, outside the docker run command
+# para evitar problemas de permissão se o arquivo foi criado por root dentro do container
+print_message "Removendo requirements.txt do diretório de build..." "$YELLOW"
+rm -f "$FULL_BUILD_PATH/requirements.txt"
+check_status "requirements.txt removido." "Erro ao remover requirements.txt."
 
 # Criar o arquivo ZIP final
 print_message "Compactando o pacote do Lambda..." "$YELLOW"
@@ -88,7 +90,7 @@ cd "$FULL_BUILD_PATH"
 zip -r "$FULL_ZIP_OUTPUT_PATH" .
 check_status "Arquivo ZIP do Lambda criado com sucesso em $FULL_ZIP_OUTPUT_PATH" "Erro ao criar arquivo ZIP."
 
-# Limpeza
+# Limpeza final do diretório de build
 print_message "Removendo diretório de build temporário..." "$YELLOW"
 rm -rf "$FULL_BUILD_PATH"
 check_status "Limpeza concluída." "Erro na limpeza."
