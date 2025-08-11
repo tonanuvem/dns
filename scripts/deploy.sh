@@ -55,16 +55,16 @@ if [ ! -f "$BASE_DIR/terraform/main.tf" ]; then
 fi
 
 # Verificar se o arquivo ZIP da função Lambda existe
-if [ ! -f "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
-    print_message "Erro: Arquivo ZIP da função Lambda não encontrado. Execute ./scripts/create_backend.sh primeiro." "$RED"
-    exit 1
-fi
+# if [ ! -f "$BASE_DIR/lambda_zip/gerenciador_dns.zip" ]; then
+#     print_message "Erro: Arquivo ZIP da função Lambda não encontrado. Execute ./scripts/create_backend.sh primeiro." "$RED"
+#     exit 1
+# fi
 
-# Verificar se o build do frontend existe
-if [ ! -d "$BASE_DIR/frontend/build" ]; then
-    print_message "Erro: Build do frontend não encontrado. Execute ./scripts/create_frontend.sh primeiro." "$RED"
-    exit 1
-fi
+# # Verificar se o build do frontend existe
+# if [ ! -d "$BASE_DIR/frontend/build" ]; then
+#     print_message "Erro: Build do frontend não encontrado. Execute ./scripts/create_frontend.sh primeiro." "$RED"
+#     exit 1
+# fi
 
 # Navegar para o diretório terraform
 cd "$BASE_DIR/terraform"
