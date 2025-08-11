@@ -1,13 +1,13 @@
 # Gerar sufixo aleatório para o nome do bucket
-resource "random_id" "frontend_bucket" {
-  byte_length = 4
-}
+# Este recurso random_id será removido, pois o nome do bucket será fixo para o CNAME.
+# resource "random_id" "frontend_bucket" {
+#   byte_length = 4
+# }
 
 # Bucket S3 para o frontend
 resource "aws_s3_bucket" "frontend" {
-  # O nome do bucket deve ser globalmente único.
-  # Usamos o nome do aluno, domínio e um sufixo aleatório.
-  bucket = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}-${random_id.frontend_bucket.hex}"
+  # ✅ CORREÇÃO 1: Nome do bucket deve ser igual ao CNAME para Static Website Hosting
+  bucket = "www.${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
 
   tags = var.frontend_tags
 }
@@ -72,9 +72,9 @@ resource "null_resource" "build_frontend" {
     api_key = var.api_key_value
     # Adicione um hash do conteúdo do diretório frontend para que o build seja refeito
     # se qualquer arquivo do frontend mudar. Isso garante que o build seja sempre atualizado.
-    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para dns_admin/
+    # Usando path.root para construir o caminho relativo ao diretório do projeto
     frontend_content_hash = filemd5("${path.root}/../dns_admin/package.json")
-    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para dns_admin/
+    # ✅ Ativado: Hash do diretório inteiro para refazer o build em qualquer mudança de arquivo
     frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/../dns_admin", "**") : filemd5("${path.root}/../dns_admin/${f}")]))
   }
 
@@ -100,15 +100,15 @@ resource "null_resource" "build_frontend" {
 
 # Upload dos arquivos do build para o S3
 resource "aws_s3_bucket_object" "frontend_assets" {
-  # O 'for_each' itera sobre todos os arquivos dentro do diretório 'build'
-  # que foi gerado pelo script create_frontend_yarn.sh
-  # Certifique-se de que o caminho 'terraform/frontend_build/build' está correto
-  # em relação à raiz do seu projeto Terraform.
-  for_each = fileset("${path.module}/frontend_build/build", "**")
+  # ✅ CORREÇÃO 2: Ajuste do caminho para o diretório 'build' dentro de 'frontend_build'
+  # path.module é 'terraform/modules/frontend'
+  # O build está em 'terraform/frontend_build/build' (relativo à raiz do projeto)
+  # Então, de path.module, precisamos subir dois níveis (../..) e descer para frontend_build/build
+  for_each = fileset("${path.module}/../../frontend_build/build", "**")
   bucket   = aws_s3_bucket.frontend.id
   key      = each.value
-  source   = "${path.module}/frontend_build/build/${each.value}"
-  etag     = filemd5("${path.module}/frontend_build/build/${each.value}")
+  source   = "${path.module}/../../frontend_build/build/${each.value}"
+  etag     = filemd5("${path.module}/../../frontend_build/build/${each.value}")
   content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
   acl      = "public-read"
 
