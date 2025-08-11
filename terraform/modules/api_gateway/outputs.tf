@@ -27,3 +27,13 @@ output "api_gateway_lambda_invoke_arn" {
   description = "ARN para invocar a função Lambda através da API Gateway"
   value       = aws_apigatewayv2_integration.lambda_integration.integration_uri
 }
+
+output "api_invoke_url" {
+  description = "URL de invocação da API Gateway."
+  value       = aws_apigatewayv2_stage.lambda_stage.invoke_url
+}
+
+output "api_stage_id" {
+  description = "ID do stage da API Gateway."
+  value       = aws_apigatewayv2_stage.lambda_stage.id
+}
