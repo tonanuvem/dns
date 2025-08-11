@@ -67,9 +67,8 @@ Este script irá:
 ```
 .
 ├── config.sh              # Script de configuração inicial
-├── criar.sh              # Script para criar builds do backend e frontend
 ├── lambda/               # Código da função Lambda
-├── frontend/            # Código do frontend
+├── dns_admin/            # Código do frontend
 ├── scripts/             # Scripts auxiliares
 │   └── deploy.sh
 └── terraform/           # Código Terraform
@@ -90,13 +89,11 @@ Este script irá:
 - Verifique se as credenciais AWS estão configuradas
 - Verifique se a zona DNS do aluno existe
 
-### Erro ao executar criar.sh
-- Verifique se o diretório lambda existe
-- Verifique se o arquivo gerenciador_dns.py existe
-- Verifique se o Node.js e npm estão instalados
-
 ### Erro ao executar deploy.sh
 - Verifique se o arquivo ZIP da função Lambda existe
 - Verifique se o build do frontend existe
 - Verifique se as credenciais AWS são válidas
 - Verifique se o arquivo terraform.tfvars está configurado corretamente 
+- Verifique se o diretório lambda existe
+- Verifique se o arquivo gerenciador_dns.py existe
+- Verifique se o Node.js e npm estão instalados
