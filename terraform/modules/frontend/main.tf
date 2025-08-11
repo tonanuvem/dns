@@ -7,7 +7,7 @@ resource "random_id" "frontend_bucket" {
 resource "aws_s3_bucket" "frontend" {
   # O nome do bucket deve ser globalmente único.
   # Usamos o nome do aluno, domínio e um sufixo aleatório.
-  bucket = "frontend-${var.frontend_nome_aluno}-${var.frontend_nome_dominio}-${random_id.frontend_bucket.hex}"
+  bucket = "frontend-${var.frontend_nome_aluno}.${var.frontend_nome_dominio}-${random_id.frontend_bucket.hex}"
 
   tags = var.frontend_tags
 }
@@ -72,18 +72,19 @@ resource "null_resource" "build_frontend" {
     api_key = var.api_key_value
     # Adicione um hash do conteúdo do diretório frontend para que o build seja refeito
     # se qualquer arquivo do frontend mudar. Isso garante que o build seja sempre atualizado.
-    # Usando path.root para construir o caminho relativo ao diretório do projeto
-    # frontend_content_hash = filemd5("${path.root}/dns_admin/package.json")
-    # ✅ Ativado: Hash do diretório inteiro para refazer o build em qualquer mudança de arquivo
-    frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/dns_admin", "**") : filemd5("${path.root}/dns_admin/${f}")]))
+    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para dns_admin/
+    frontend_content_hash = filemd5("${path.root}/../dns_admin/package.json")
+    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para dns_admin/
+    frontend_app_hash = sha1(join("", [for f in fileset("${path.root}/../dns_admin", "**") : filemd5("${path.root}/../dns_admin/${f}")]))
   }
 
   # Provisioner local-exec para executar o script Bash
   provisioner "local-exec" {
-    # ✅ Ajustado: Chama o script explicitamente com 'bash' para evitar erros de 'not found'
-    command = "bash ${path.root}/scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}"
-    # O working_dir deve ser a raiz do seu projeto Terraform, onde o script está localizado
-    working_dir = "${path.root}"
+    # ✅ Ajustado o caminho: Sobe um nível (..) antes de descer para scripts/
+    command = "bash ${path.root}/../scripts/create_frontend_yarn.sh --api-url ${var.api_gateway_invoke_url} --api-key ${var.api_key_value}"
+    # O working_dir deve ser a raiz do seu projeto Terraform (o diretório 'dns'),
+    # para que os caminhos internos do script create_frontend_yarn.sh funcionem corretamente.
+    working_dir = "${path.root}/.."
   }
 }
 
