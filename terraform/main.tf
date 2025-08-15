@@ -85,21 +85,36 @@ module "frontend" {
 }
 
 # =============================================
-# Fluxo 4: CloudFront (Dependente do Frontend)
+# Fluxo 4: CloudFront (Dependente do Frontend) : falha IAM
+# =============================================
+# Este módulo é responsável pela configuração dos:
+# API Gateway como proxy HTTPS para o bucket S3 público 
+# (sem Lambda, usando integração HTTP direta).
+module "apigw_s3_proxy" {
+  source              = "./modules/apigw_s3_proxy"
+
+  proxy_bucket_name   = module.frontend.frontend_website_endpoint  # ex: "www.aluno.lab.tonanuvem.com.s3-website-us-east-1.amazonaws.com"
+  proxy_domain        = "www.${var.nome_aluno}.${var.nome_dominio}"
+  proxy_zone_id       = data.aws_route53_zone.selecionada.zone_id
+  proxy_tags          = var.tags
+}
+
+# =============================================
+# Fluxo 4: CloudFront (Dependente do Frontend) : falha IAM
 # =============================================
 # Este módulo é responsável pela configuração dos registros DNS necessários para integração com o CloudFront.
 # Ele provê:
 # - Registros DNS para o API Gateway, permitindo roteamento de requisições via CloudFront.
 # - Registros DNS para o Frontend, garantindo que o tráfego do usuário seja direcionado corretamente através do CloudFront.
-module "cloudfront" {
-  source = "./modules/cloudfront"
+# module "cloudfront" {
+#   source = "./modules/cloudfront"
 
-  cloudfront_nome_aluno          = var.nome_aluno
-  cloudfront_nome_dominio        = var.nome_dominio
-  cloudfront_id_zona_hospedada   = data.aws_route53_zone.selecionada.zone_id
-  cloudfront_s3_website_endpoint = module.frontend.frontend_website_endpoint
-  cloudfront_tags                = var.tags
-}
+#   cloudfront_nome_aluno          = var.nome_aluno
+#   cloudfront_nome_dominio        = var.nome_dominio
+#   cloudfront_id_zona_hospedada   = data.aws_route53_zone.selecionada.zone_id
+#   cloudfront_s3_website_endpoint = module.frontend.frontend_website_endpoint
+#   cloudfront_tags                = var.tags
+# }
 
 
 # =============================================
