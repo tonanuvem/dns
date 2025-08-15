@@ -1,10 +1,10 @@
 provider "aws" {
-  alias  = "us_east_1"
+  alias  = "regional"
   region = "us-east-1"
 }
 
 resource "aws_acm_certificate" "cert" {
-  provider          = aws.us_east_1
+  provider          = aws.regional
   domain_name       = var.proxy_domain
   validation_method = "DNS"
   tags              = var.proxy_tags
@@ -27,7 +27,7 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_acm_certificate_validation" "cert" {
-  provider                = aws.us_east_1
+  provider                = aws.regional
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
 }
@@ -68,37 +68,31 @@ resource "aws_api_gateway_integration" "s3_integration" {
 }
 
 resource "aws_api_gateway_deployment" "s3_deployment" {
-  depends_on = [
-    aws_api_gateway_integration.s3_integration
-  ]
-
+  depends_on = [aws_api_gateway_integration.s3_integration]
   rest_api_id = aws_api_gateway_rest_api.s3_proxy.id
-
-  # stage_name removido aqui (deprecated)
 }
 
-resource "aws_api_gateway_stage" "prod" {
+resource "aws_api_gateway_stage" "s3_stage" {
   deployment_id = aws_api_gateway_deployment.s3_deployment.id
   rest_api_id   = aws_api_gateway_rest_api.s3_proxy.id
   stage_name    = "prod"
-  description   = "Production stage"
 }
 
 resource "aws_api_gateway_domain_name" "custom_domain" {
   depends_on = [aws_acm_certificate_validation.cert]
 
   domain_name     = var.proxy_domain
-  certificate_arn = aws_acm_certificate.cert.arn
+  regional_certificate_arn = aws_acm_certificate.cert.arn
 
   endpoint_configuration {
-    types = ["EDGE"]
+    types = ["REGIONAL"]
   }
 }
 
 resource "aws_api_gateway_base_path_mapping" "mapping" {
   domain_name = aws_api_gateway_domain_name.custom_domain.domain_name
   api_id      = aws_api_gateway_rest_api.s3_proxy.id
-  stage_name  = aws_api_gateway_stage.prod.stage_name
+  stage       = aws_api_gateway_stage.s3_stage.stage_name
 }
 
 resource "aws_route53_record" "api_dns" {
@@ -107,8 +101,8 @@ resource "aws_route53_record" "api_dns" {
   type    = "A"
 
   alias {
-    name                   = aws_api_gateway_domain_name.custom_domain.cloudfront_domain_name
-    zone_id                = aws_api_gateway_domain_name.custom_domain.cloudfront_zone_id
+    name                   = aws_api_gateway_domain_name.custom_domain.regional_domain_name
+    zone_id                = aws_api_gateway_domain_name.custom_domain.regional_zone_id
     evaluate_target_health = false
   }
 }

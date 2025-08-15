@@ -85,7 +85,7 @@ module "frontend" {
 }
 
 # =============================================
-# Fluxo 4: CloudFront (Dependente do Frontend) : falha IAM
+# Fluxo 4: Proxy (Dependente do Frontend)
 # =============================================
 # Este módulo é responsável pela configuração dos:
 # API Gateway como proxy HTTPS para o bucket S3 público 
