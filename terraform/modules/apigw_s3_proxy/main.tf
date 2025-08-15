@@ -92,7 +92,7 @@ resource "aws_api_gateway_domain_name" "custom_domain" {
 resource "aws_api_gateway_base_path_mapping" "mapping" {
   domain_name = aws_api_gateway_domain_name.custom_domain.domain_name
   api_id      = aws_api_gateway_rest_api.s3_proxy.id
-  stage       = aws_api_gateway_stage.s3_stage.stage_name
+  stage_name  = aws_api_gateway_stage.s3_stage.stage_name
 }
 
 resource "aws_route53_record" "api_dns" {
