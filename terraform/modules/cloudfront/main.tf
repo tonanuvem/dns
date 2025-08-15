@@ -5,7 +5,7 @@ provider "aws" {
 
 # Política para permitir ações CloudFront necessárias
 resource "aws_iam_policy" "allow_cloudfront_create" {
-  name        = "AllowCloudFrontCreate"
+  name        = "AllowCloudFrontCreate-${var.cloudfront_nome_aluno}"
   description = "Permissões para criação e gerenciamento de distribuições CloudFront"
 
   policy = jsonencode({
