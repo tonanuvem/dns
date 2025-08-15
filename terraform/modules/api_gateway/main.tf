@@ -1,6 +1,6 @@
 # API Gateway
 resource "aws_apigatewayv2_api" "api" {
-  name          = "api-gerenciador-dns"
+  name        = "api-gerenciador-dns"
   protocol_type = "HTTP"
   cors_configuration {
     allow_origins  = ["*"]
@@ -46,55 +46,80 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
-# Certificado ACM para a API (comentado conforme seu código)
-# resource "aws_acm_certificate" "api" {
-#   domain_name       = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
-#   validation_method = "DNS"
-#
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-#
-#   tags = merge(var.api_gateway_tags, {
-#     Name = "api-${var.api_gateway_nome_aluno}-cert"
-#   })
-# }
 
-# Validação do certificado (comentado conforme seu código)
-# resource "aws_acm_certificate_validation" "api" {
-#   certificate_arn         = aws_acm_certificate.api.arn
-#   validation_record_fqdns = [for record in aws_acm_certificate.api.domain_validation_options : record.resource_record_name]
-# }
+# ✅ DOMÍNIO PERSONALIZADO, CERTIFICADO E VALIDAÇÃO (recursos descomentados)
 
-# Domínio personalizado da API (comentado conforme seu código)
-# resource "aws_apigatewayv2_domain_name" "api" {
-#   domain_name = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
-#
-#   domain_name_configuration {
-#     certificate_arn = aws_acm_certificate.api.arn
-#     endpoint_type   = "REGIONAL"
-#     security_policy = "TLS_1_2"
-#   }
-#
-#   tags = var.api_gateway_tags
-# }
+# Certificado ACM para a API
+resource "aws_acm_certificate" "api" {
+  domain_name       = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
+  validation_method = "DNS"
+  lifecycle {
+    create_before_destroy = true
+  }
+  tags = merge(var.api_gateway_tags, {
+    Name = "api-${var.api_gateway_nome_aluno}-cert"
+  })
+}
 
-# Mapeamento da API para o domínio personalizado (comentado conforme seu código)
-# resource "aws_apigatewayv2_api_mapping" "api" {
-#   api_id      = aws_apigatewayv2_api.api.id
-#   domain_name = aws_apigatewayv2_domain_name.api.domain_name
-#   stage       = aws_apigatewayv2_stage.lambda_stage.id
-# }
+# Validação do certificado
+resource "aws_acm_certificate_validation" "api" {
+  certificate_arn         = aws_acm_certificate.api.arn
+  # O fqdn correto é o do registro Route53
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+  # Dependência explícita
+  depends_on = [aws_route53_record.cert_validation]
+}
 
-# Registro DNS para a API (comentado conforme seu código)
-# resource "aws_route53_record" "api" {
-#   name    = aws_apigatewayv2_domain_name.api.domain_name
-#   type    = "A"
-#   zone_id = var.api_gateway_id_zona_hospedada
-#
-#   alias {
-#     name                   = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
-#     zone_id                = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
-#     evaluate_target_health = false
-#   }
-# }
+# Mapeamento DNS para validação do certificado ACM
+# Este recurso precisa ser criado para que a AWS possa validar a propriedade do domínio
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.api.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  zone_id = var.api_gateway_id_zona_hospedada
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.record]
+}
+
+# Domínio personalizado da API
+resource "aws_apigatewayv2_domain_name" "api" {
+  domain_name = "api.${var.api_gateway_nome_aluno}.${var.api_gateway_nome_dominio}"
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate.api.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+  # Dependência explícita para garantir que o certificado seja validado primeiro
+  depends_on = [aws_acm_certificate_validation.api]
+  tags = var.api_gateway_tags
+}
+
+# Mapeamento da API para o domínio personalizado
+resource "aws_apigatewayv2_api_mapping" "api" {
+  api_id      = aws_apigatewayv2_api.api.id
+  domain_name = aws_apigatewayv2_domain_name.api.domain_name
+  stage       = aws_apigatewayv2_stage.lambda_stage.id
+  # Dependência explícita
+  depends_on = [aws_apigatewayv2_domain_name.api]
+}
+
+# Registro DNS para a API
+resource "aws_route53_record" "api" {
+  name    = aws_apigatewayv2_domain_name.api.domain_name
+  type    = "A"
+  zone_id = var.api_gateway_id_zona_hospedada
+
+  alias {
+    name                 = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
+    zone_id              = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+  # Dependência explícita para garantir que o mapeamento da API seja criado primeiro
+  depends_on = [aws_apigatewayv2_api_mapping.api]
+}
