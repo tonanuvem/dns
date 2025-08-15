@@ -85,7 +85,25 @@ module "frontend" {
 }
 
 # =============================================
-# Fluxo 4: DNS (Dependente do Frontend e API Gateway)
+# Fluxo 4: CloudFront (Dependente do Frontend)
+# =============================================
+# Este módulo é responsável pela configuração dos registros DNS necessários para integração com o CloudFront.
+# Ele provê:
+# - Registros DNS para o API Gateway, permitindo roteamento de requisições via CloudFront.
+# - Registros DNS para o Frontend, garantindo que o tráfego do usuário seja direcionado corretamente através do CloudFront.
+module "cloudfront" {
+  source = "./modules/cloudfront"
+
+  cloudfront_nome_aluno          = var.nome_aluno
+  cloudfront_nome_dominio        = var.nome_dominio
+  cloudfront_id_zona_hospedada   = data.aws_route53_zone.selecionada.zone_id
+  cloudfront_s3_website_endpoint = module.frontend.frontend_website_endpoint
+  cloudfront_tags                = var.tags
+}
+
+
+# =============================================
+# Fluxo 5: DNS (Dependente do Frontend e API Gateway)
 # =============================================
 # O módulo DNS é dependente e fornece:
 # - Registros DNS para API Gateway
