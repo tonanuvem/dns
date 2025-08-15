@@ -94,7 +94,7 @@ module "apigw_s3_proxy" {
   source              = "./modules/apigw_s3_proxy"
 
   proxy_bucket_name   = module.frontend.frontend_website_endpoint  # ex: "www.aluno.lab.tonanuvem.com.s3-website-us-east-1.amazonaws.com"
-  proxy_domain        = "www.${var.nome_aluno}.${var.nome_dominio}"
+  proxy_domain        = "www2.${var.nome_aluno}.${var.nome_dominio}"
   proxy_zone_id       = data.aws_route53_zone.selecionada.zone_id
   proxy_tags          = var.tags
 }
