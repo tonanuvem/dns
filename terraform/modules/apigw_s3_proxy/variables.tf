@@ -13,7 +13,7 @@ variable "proxy_zone_id" {
   type        = string
 }
 
-variable "tags" {
+variable "proxy_tags" {
   type        = map(string)
   default     = {}
   description = "Tags aplicadas a recursos do módulo"
