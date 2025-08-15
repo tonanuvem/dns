@@ -7,7 +7,7 @@ resource "aws_acm_certificate" "cert" {
   provider          = aws.us_east_1
   domain_name       = var.proxy_domain
   validation_method = "DNS"
-  tags              = var.tags
+  tags              = var.proxy_tags
 }
 
 resource "aws_route53_record" "cert_validation" {
