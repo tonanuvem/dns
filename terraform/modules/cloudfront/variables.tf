@@ -23,3 +23,9 @@ variable "cloudfront_tags" {
   default     = {}
   description = "Tags para os recursos"
 }
+
+variable "cloudfront_iam_role_name" {
+  type        = string
+  description = "Nome do IAM Role para anexar a política CloudFront (ex: voclabs)"
+  default     = "voclabs"
+}

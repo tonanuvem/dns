@@ -3,6 +3,35 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Política para permitir ações CloudFront necessárias
+resource "aws_iam_policy" "allow_cloudfront_create" {
+  name        = "AllowCloudFrontCreate"
+  description = "Permissões para criação e gerenciamento de distribuições CloudFront"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateDistribution",
+          "cloudfront:UpdateDistribution",
+          "cloudfront:GetDistribution",
+          "cloudfront:ListDistributions",
+          "cloudfront:GetDistributionConfig"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Anexar a política ao role informado na variável
+resource "aws_iam_role_policy_attachment" "attach_cloudfront_policy" {
+  role       = var.cloudfront_iam_role_name
+  policy_arn = aws_iam_policy.allow_cloudfront_create.arn
+}
+
 # Certificado ACM na região us-east-1 (exigido pelo CloudFront)
 resource "aws_acm_certificate" "frontend" {
   provider          = aws.us_east_1
@@ -89,7 +118,10 @@ resource "aws_cloudfront_distribution" "frontend" {
   price_class = "PriceClass_100"
   tags        = var.cloudfront_tags
 
-  depends_on = [aws_acm_certificate_validation.frontend]
+  depends_on = [
+    aws_acm_certificate_validation.frontend,
+    aws_iam_role_policy_attachment.attach_cloudfront_policy
+  ]
 }
 
 # DNS apontando para CloudFront
