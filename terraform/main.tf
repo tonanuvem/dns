@@ -98,8 +98,8 @@ module "frontend" {
 #   dns_zone_id = data.aws_route53_zone.selecionada.zone_id
   
 #   # Valores do API Gateway
-#   # dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
-#   # dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
+#   dns_api_gateway_domain = module.api_gateway.api_gateway_domain_name
+#   dns_api_gateway_domain_zone_id = module.api_gateway.api_gateway_domain_zone_id
   
 #   # Valores do Frontend
 #   dns_frontend_domain = module.frontend.frontend_domain_name
@@ -108,20 +108,3 @@ module "frontend" {
   
 #   dns_tags = var.tags
 # }
-
-# =============================================
-# Recursos Adicionais
-# =============================================
-
-# Criar zona hospedada para o aluno
-# resource "aws_route53_zone" "zona_aluno" {
-#   name = "${var.nome_aluno}.${var.nome_dominio}"
-#   comment = "Zona hospedada para ${var.nome_aluno}"
-  
-#   tags = merge(var.tags, {
-#     Aluno = var.nome_aluno
-#   })
-# }
-
-# Removi a tabela DynamoDB do root, pois agora está no módulo lambda_api.
-
