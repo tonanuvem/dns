@@ -9,10 +9,10 @@
 # =======================================================
 
 # --- Variáveis de Configuração ---
-# Substitua 'aluno' pela sua chave de API, se for diferente.
-API_KEY="aluno"
+# Substitua 'SENHA' pela sua chave de API, se for diferente.
+API_KEY="SENHA"
 # URL base da sua API Gateway.
-API_URL="https://tsll3rchh7.execute-api.us-east-1.amazonaws.com/prod"
+API_URL="https:/api.lab.aluno.tonanuvem.com"
 # URLs completas para os endpoints.
 REGISTROS_URL="$API_URL/registros"
 INFO_URL="$API_URL/info"
@@ -21,7 +21,7 @@ INFO_URL="$API_URL/info"
 #SUBDOMINIO="teste-api-$(date +%s)"
 
 SUBDOMINIO="INSERIRseuNOME"
-ENDERECO_IP="44.201.245.46"
+ENDERECO_IP=$(curl checkip.amazonaws.com)
 
 # --- JSON para o teste de POST ---
 # O 'heredoc' (<<EOF) permite definir um bloco de texto JSON no próprio script.
