@@ -14,7 +14,7 @@ Sistema que permite aos alunos criarem aliases DNS para suas máquinas usando AW
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/seu-usuario/dns.git
+git clone https://github.com/tonanuvem/dns.git
 cd dns
 ```
 
