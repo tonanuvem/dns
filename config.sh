@@ -149,8 +149,8 @@ check_status "LabRole validada com sucesso" "Falha na validação do LabRole"
 # Tornar os scripts executáveis
 print_message "Configurando permissões dos scripts..."
 chmod +x scripts/validar_LabRole.sh
-chmod +x scripts/create_backend.sh
-chmod +x scripts/create_frontend.sh
+#chmod +x scripts/create_backend.sh
+chmod +x scripts/create_frontend_yarn.sh
 chmod +x scripts/update_frontend.sh
 chmod +x scripts/deploy.sh
 check_status "Permissões configuradas com sucesso" "Falha ao configurar permissões"
