@@ -2,8 +2,8 @@
 # SUFIXO NUMÉRICO ALEATÓRIO
 ############################
 resource "random_integer" "frontend" {
-  min = 1000
-  max = 9999
+  min = 0
+  max = 99
 }
 
 ############################
