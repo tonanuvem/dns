@@ -39,14 +39,24 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Verificar argumentos
-if [ "$#" -ne 2 ]; then
-    print_error "Uso: $0 <nome_aluno> <senha>"
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    print_error "Uso: $0 <nome_turma> <senha> [dominio_base]"
+    echo ""
+    echo "  nome_turma   nomeia a zona compartilhada: os alunos criam"
+    echo "               <alias>.<nome_turma>.<dominio_base>"
+    echo "  senha        senha da API, a mesma para a turma"
+    echo "  dominio_base padrão: lab.tonanuvem.com"
+    echo ""
+    echo "Exemplo: $0 aluno aluno"
     exit 1
 fi
 
 # Atribuir os parâmetros a variáveis
 NOME_ALUNO=$1
 SENHA_COMPARTILHADA=$2
+# O dominio era fixo no script, em tres lugares diferentes.
+NOME_DOMINIO=${3:-lab.tonanuvem.com}
+ZONA_DNS="${NOME_ALUNO}.${NOME_DOMINIO}"
 
 # Verificar se o arquivo terraform.tfvars.example existe
 if [ ! -f "terraform/terraform.tfvars.example" ]; then
@@ -66,6 +76,7 @@ print_message "Criando arquivo de configuração do Terraform..."
 # Exportar variáveis de ambiente para substituição
 export NOME_ALUNO="$NOME_ALUNO"
 export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
+export NOME_DOMINIO="$NOME_DOMINIO"
 
 # Criar terraform.tfvars a partir do exemplo, substituindo as variáveis de ambiente
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
@@ -73,6 +84,7 @@ envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
 # Substituir manualmente as variáveis que não foram substituídas (caso envsubst não funcione para todas)
 sed -i "s|\${NOME_ALUNO}|$NOME_ALUNO|g" terraform/terraform.tfvars
 sed -i "s|\${SENHA_COMPARTILHADA}|$SENHA_COMPARTILHADA|g" terraform/terraform.tfvars
+sed -i "s|\${NOME_DOMINIO}|$NOME_DOMINIO|g" terraform/terraform.tfvars
 
 # Inserir ou atualizar o account_id no terraform.tfvars
 if grep -q '^account_id' terraform/terraform.tfvars; then
@@ -160,12 +172,17 @@ print_message "Verificando zonas DNS disponíveis..."
 echo "====================================="
 python3 scripts/dns_list_zonas.py
 
-# Verificar se a zona do aluno existe
-print_message "Verificando zona DNS do aluno..."
+# Verificar se a zona da turma existe
+print_message "Verificando zona DNS da turma..."
 echo "================================="
-ZONE_ID=$(python3 scripts/dns_list_zonas.py "${1}.lab.tonanuvem.com")
+ZONE_ID=$(python3 scripts/dns_list_zonas.py "$ZONA_DNS")
 if [ -z "$ZONE_ID" ]; then
-    print_error "Zona DNS '${1}.lab.tonanuvem.com' não encontrada"
+    print_error "Zona DNS '$ZONA_DNS' não encontrada"
+    echo ""
+    echo "Crie a zona hospedada '$ZONA_DNS' no Route 53 desta conta e"
+    echo "delegue os NS dela a partir de '$NOME_DOMINIO'. Depois de criada,"
+    echo "o script ./scripts/mostrar_delegacao.sh imprime os NS para colar"
+    echo "na zona pai."
     exit 1
 fi
 print_message "✓ Zona DNS encontrada: $ZONE_ID"
@@ -186,10 +203,15 @@ check_status "ID da zona hospedada atualizado com sucesso" "Falha ao atualizar I
 deactivate
 
 echo -e "\nConfiguração concluída com sucesso!"
-echo -e "\nPróximo passo:"
-#echo "1. Execute ./criar.sh para criar o build do backend e frontend"
+echo ""
+echo "Zona da turma : $ZONA_DNS"
+echo "Zona hospedada: $ZONE_ID"
+echo ""
+echo "Próximo passo:"
 echo "- Execute ./scripts/deploy.sh para fazer o deploy da infraestrutura"
 echo ""
-echo "Após o deploy, você poderá acessar:"
-echo "- Frontend: https://www.${1}.lab.tonanuvem.com"
-echo "- API: https://api.${1}.lab.tonanuvem.com"
+# As URLs do frontend nao sao previsiveis aqui: o hostname carrega um
+# sufixo sorteado durante o apply. O deploy.sh imprime os enderecos
+# reais, vindos dos outputs. Antes este bloco anunciava
+# "https://www.<turma>..." -- um host que nunca chegou a existir.
+echo "O deploy.sh mostra no final os endereços do site e da API."

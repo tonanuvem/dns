@@ -1,31 +1,28 @@
+# Modelo preenchido pelo config.sh (via envsubst). Nao edite o
+# terraform.tfvars gerado a partir daqui: ele carrega a senha da turma
+# e por isso fica fora do controle de versao.
+#
+# As variaveis api_gateway_* e frontend_* foram removidas: nao existem
+# no root module -- os modulos recebem esses valores do main.tf -- e
+# produziam seis avisos de "Value for undeclared variable" em todo
+# init e plan.
+
 # Configurações gerais
 aws_region = "us-east-1"
 ttl_dns    = 60
 
-# Nome do aluno e domínio
+# Turma e domínio.
+#
+# nome_aluno nomeia a zona compartilhada da turma: os alunos criam
+# <alias> dentro de <nome_aluno>.<nome_dominio>.
 nome_aluno   = "${NOME_ALUNO}"
-nome_dominio = "lab.tonanuvem.com"
+nome_dominio = "${NOME_DOMINIO}"
 
-# Senha compartilhada para autenticação na API
+# Senha compartilhada para autenticação na API.
+#
+# Ela e embutida no bundle do frontend, entao vale como senha da turma,
+# nao como segredo: troque a cada semestre.
 senha_compartilhada = "${SENHA_COMPARTILHADA}"
-
-# Variáveis do módulo API Gateway
-api_gateway_nome_aluno   = "${NOME_ALUNO}"
-api_gateway_nome_dominio = "lab.tonanuvem.com"
-api_gateway_tags = {
-  Projeto    = "Gerenciador DNS"
-  Ambiente   = "laboratorio"
-  Gerenciado = "terraform"
-}
-
-# Variáveis do módulo Frontend
-frontend_nome_aluno   = "${NOME_ALUNO}"
-frontend_nome_dominio = "lab.tonanuvem.com"
-frontend_tags = {
-  Projeto    = "Gerenciador DNS"
-  Ambiente   = "laboratorio"
-  Gerenciado = "terraform"
-}
 
 # Tags padrão para todos os recursos
 tags = {
@@ -34,8 +31,6 @@ tags = {
   Gerenciado = "terraform"
 }
 
-# Configurações do Route 53
-id_zona_hospedada = ""  # Será preenchido automaticamente pelo script de configuração
-
-# ID da conta AWS
-account_id = ""
+# Preenchidos automaticamente pelo config.sh
+id_zona_hospedada = ""
+account_id        = ""
