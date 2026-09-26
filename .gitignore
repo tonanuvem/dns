@@ -1,0 +1,55 @@
+# ============================================================
+# Segredos
+#
+# O credenciais_config.sh grava as credenciais da AWS em ./files,
+# e o git_atualizar_local_remoto.sh faz "git add ." -- sem estas
+# linhas o par acabaria publicando token de sessao no GitHub.
+# ============================================================
+files/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials
+
+# ============================================================
+# Terraform
+#
+# O terraform.tfvars e gerado pelo config.sh e carrega a
+# senha_compartilhada da turma.
+# ============================================================
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+terraform.tfvars
+crash.log
+
+# O lock file e versionado de proposito: garante a mesma versao
+# de provider para a turma inteira.
+!.terraform.lock.hcl
+
+# ============================================================
+# Artefatos de build
+#
+# O frontend_build e gerado pelo create_frontend_yarn.sh a cada
+# deploy, e o lambda_function.zip pelo archive_file.
+# ============================================================
+node_modules/
+dist/
+build/
+terraform/frontend_build/
+*.zip
+
+# ============================================================
+# Python
+# ============================================================
+venv/
+__pycache__/
+*.pyc
+
+# ============================================================
+# Sistema operacional
+# ============================================================
+.DS_Store
