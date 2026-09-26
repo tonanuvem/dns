@@ -25,6 +25,14 @@ terraform {
     }
   }
   required_version = ">= 1.2.0"
+
+  # Backend parcial: o bucket e a regiao chegam pelo deploy.sh, que
+  # deriva o nome do account id (o mesmo padrao do repositorio config).
+  #
+  # Com o state local, uma VM recriada ou um $HOME perdido levava junto
+  # o unico registro do que existe na conta -- e os recursos do Route 53
+  # da turma ficariam orfaos, sem destroy possivel.
+  backend "s3" {}
 }
 
 # Configuração do provedor AWS
