@@ -54,9 +54,10 @@ ALIAS_VALIDO = re.compile(r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$')
 
 # A zona e compartilhada pela turma inteira e a criacao usa UPSERT.
 # Sem esta lista, um aluno que escolhesse o alias "api" sobrescreveria
-# o registro da propria API e derrubaria o lab para todos. O padrao
-# www\d* cobre o bucket do frontend (wwwNN) e o proxy HTTPS (www2).
-ALIAS_RESERVADOS = re.compile(r'^(api|www\d*)$')
+# o registro da propria API e derrubaria o lab para todos. Os padroes
+# cobrem os hostnames da infraestrutura: wwwNN (bucket do frontend) e
+# httpsNN (proxy com TLS), ambos com o sufixo sorteado no apply.
+ALIAS_RESERVADOS = re.compile(r'^(api|www\d*|https\d*)$')
 
 
 def _resposta(status, corpo, headers_extra=None):
