@@ -31,7 +31,9 @@ resource "aws_lambda_function" "gerenciador_dns" {
   function_name    = "gerenciador-dns-${var.lambda_nome_aluno}"
   role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
   handler         = "gerenciador_dns.lambda_handler"
-  runtime         = "python3.9"
+  # python3.9 saiu do suporte da Lambda; a partir de dez/2025 a AWS
+  # bloqueia ate a atualizacao de funcoes que ainda o usam.
+  runtime         = "python3.12"
   timeout         = 30
   memory_size     = 128
 
@@ -40,7 +42,8 @@ resource "aws_lambda_function" "gerenciador_dns" {
       DYNAMODB_TABLE = aws_dynamodb_table.registros_dns.name
       SENHA_API = var.senha_compartilhada
       TTL_DNS = var.ttl_dns
-      NAMESERVERS = var.nome_dominio
+      # Era NAMESERVERS, mas o valor sempre foi o dominio da zona.
+      DOMINIO = var.nome_dominio
       ZONA_ID = var.zona_id
     }
   }

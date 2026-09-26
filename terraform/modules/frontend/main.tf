@@ -117,9 +117,15 @@ resource "null_resource" "build_frontend" {
   triggers = {
     api_url = var.api_gateway_invoke_url
     api_key = var.api_key_value
+
+    # O hash observava "../frontend_app", pasta que nao existe: o
+    # resultado era sempre da39a3ee... (o sha1 da string vazia), entao
+    # editar o frontend nunca disparava um novo build. O codigo esta em
+    # dns_admin/, e o padrao lista so o que entra no bundle -- sem o
+    # filtro, node_modules/ e build/ tornariam o hash inviavel.
     frontend_app_hash = sha1(join("", [
-      for f in fileset("${path.root}/../frontend_app", "**") :
-      filemd5("${path.root}/../frontend_app/${f}")
+      for f in fileset("${path.root}/../dns_admin", "{src/**,public/**,index.html,package.json,vite.config.js}") :
+      filemd5("${path.root}/../dns_admin/${f}")
     ]))
   }
 
@@ -136,42 +142,34 @@ resource "null_resource" "build_frontend" {
 
 ############################
 # UPLOAD DOS ARQUIVOS
+#
+# O upload usava aws_s3_object com for_each sobre um fileset do
+# frontend_build. O fileset e resolvido no PLAN, antes de o
+# null_resource acima gerar o build -- entao no primeiro apply a pasta
+# nem existia, nenhum objeto entrava no plano e o site subia vazio
+# (bucket criado, CNAME criado, zero arquivos).
+#
+# O sync roda no apply, depois do build, e o --delete remove sobras de
+# builds anteriores. O proprio CLI define o Content-Type pela extensao,
+# o que tornou o mapa de mime types desnecessario.
 ############################
-resource "aws_s3_object" "frontend_assets" {
-  for_each = fileset("${path.module}/../../frontend_build", "**")
+resource "null_resource" "upload_frontend" {
+  triggers = {
+    bucket   = aws_s3_bucket.frontend.id
+    build_id = null_resource.build_frontend.id
+  }
 
-  bucket       = aws_s3_bucket.frontend.id
-  key          = each.value
-  source       = "${path.module}/../../frontend_build/${each.value}"
-  etag         = filemd5("${path.module}/../../frontend_build/${each.value}")
-  content_type = lookup(
-    local.mime_types,
-    split(".", each.value)[length(split(".", each.value)) - 1],
-    "application/octet-stream"
-  )
+  provisioner "local-exec" {
+    working_dir = "${path.root}/.."
+
+    command = "aws s3 sync ./terraform/frontend_build s3://${aws_s3_bucket.frontend.id} --delete"
+  }
 
   depends_on = [
     null_resource.build_frontend,
-    aws_s3_bucket_policy.frontend_public_read
+    aws_s3_bucket_policy.frontend_public_read,
+    aws_s3_bucket_website_configuration.frontend
   ]
-}
-
-############################
-# MIME TYPES
-############################
-locals {
-  mime_types = {
-    html = "text/html"
-    css  = "text/css"
-    js   = "application/javascript"
-    json = "application/json"
-    png  = "image/png"
-    jpg  = "image/jpeg"
-    jpeg = "image/jpeg"
-    gif  = "image/gif"
-    svg  = "image/svg+xml"
-    ico  = "image/x-icon"
-  }
 }
 
 ############################

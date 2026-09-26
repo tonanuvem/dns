@@ -4,6 +4,25 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    # Os quatro abaixo eram usados pelos modulos sem estarem
+    # declarados, entao o init resolvia "latest" a cada execucao e a
+    # turma podia acabar com versoes diferentes entre si.
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.6"
+    }
   }
   required_version = ">= 1.2.0"
 }
