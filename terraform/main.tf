@@ -118,9 +118,9 @@ module "frontend" {
 # API Gateway como proxy HTTPS para o bucket S3 público 
 # (sem Lambda, usando integração HTTP direta).
 module "apigw_s3_proxy" {
-  source              = "./modules/apigw_s3_proxy"
+  source = "./modules/apigw_s3_proxy"
 
-  proxy_bucket_name   = module.frontend.frontend_website_endpoint  # ex: "www7.aluno.lab.tonanuvem.com.s3-website-us-east-1.amazonaws.com"
+  proxy_bucket_name = module.frontend.frontend_website_endpoint # ex: "www7.aluno.lab.tonanuvem.com.s3-website-us-east-1.amazonaws.com"
 
   # Era "www2" fixo, e o bucket carrega um sufixo sorteado de 0 a 99:
   # um sorteio de 2 colocaria um CNAME (frontend -> S3) e um A-alias
@@ -131,9 +131,9 @@ module "apigw_s3_proxy" {
   # precisa ser unico DENTRO da zona. Entao ele fica estatico e sem
   # numero: nunca colide com wwwNN, e continua conhecido em tempo de
   # plan, que e o que o for_each do cert_validation exige.
-  proxy_domain        = "https.${var.nome_aluno}.${var.nome_dominio}"
-  proxy_zone_id       = data.aws_route53_zone.selecionada.zone_id
-  proxy_tags          = var.tags
+  proxy_domain  = "https.${var.nome_aluno}.${var.nome_dominio}"
+  proxy_zone_id = data.aws_route53_zone.selecionada.zone_id
+  proxy_tags    = var.tags
 }
 
 # =============================================
