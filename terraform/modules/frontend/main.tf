@@ -84,9 +84,17 @@ resource "null_resource" "build_frontend" {
     # editar o frontend nunca disparava um novo build. O codigo esta em
     # dns_admin/, e o padrao lista so o que entra no bundle -- sem o
     # filtro, node_modules/ e build/ tornariam o hash inviavel.
+    # Um fileset por padrao: a funcao nao aceita chaves ("{a,b}") e
+    # falha com "syntax error in pattern". setunion devolve um conjunto
+    # ordenado, entao o hash e estavel entre execucoes.
     frontend_app_hash = sha1(join("", [
-      for f in fileset("${path.root}/../dns_admin", "{src/**,public/**,index.html,package.json,vite.config.js}") :
-      filemd5("${path.root}/../dns_admin/${f}")
+      for f in setunion(
+        fileset("${path.root}/../dns_admin", "src/**"),
+        fileset("${path.root}/../dns_admin", "public/**"),
+        fileset("${path.root}/../dns_admin", "index.html"),
+        fileset("${path.root}/../dns_admin", "package.json"),
+        fileset("${path.root}/../dns_admin", "vite.config.js"),
+      ) : filemd5("${path.root}/../dns_admin/${f}")
     ]))
   }
 
