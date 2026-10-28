@@ -27,6 +27,14 @@ data "archive_file" "lambda_zip" {
 # Função Lambda
 resource "aws_lambda_function" "gerenciador_dns" {
   filename         = data.archive_file.lambda_zip.output_path
+
+  # Sem isto o Terraform so compara o CAMINHO do zip, que nunca muda:
+  # editar a Lambda nao gerava diff nenhum e o apply publicava a versao
+  # antiga em silencio. Observado em 28/10: o archive_file leu um hash
+  # novo (o zip mudou), o plano nao trouxe a funcao, e a API continuou
+  # ignorando o token -- rodando o codigo anterior.
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
   # filename = "${path.module}/fastapi_lambda_function.zip"
   function_name    = "gerenciador-dns-${var.lambda_nome_aluno}"
   role            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
