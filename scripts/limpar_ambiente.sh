@@ -120,10 +120,17 @@ APIS_V1=$(aws apigateway get-rest-apis \
     --query "items[?name=='S3ProxyAPI'].id" --output text 2>/dev/null | tr '\t' '\n' | grep -v '^$')
 
 # Dominios personalizados: api.<zona>, wwwNN.<zona>, httpsNN.<zona>.
-DOM_V2=$(aws apigatewayv2 get-domain-names \
-    --query "Items[?ends_with(DomainName, '.${ZONA}')].DomainName" --output text 2>/dev/null | tr '\t' '\n' | grep -v '^$')
-DOM_V1=$(aws apigateway get-domain-names \
-    --query "items[?ends_with(domainName, '.${ZONA}')].domainName" --output text 2>/dev/null | tr '\t' '\n' | grep -v '^$')
+#
+# Os dois comandos abaixo devolvem os MESMOS objetos: no API Gateway o
+# dominio personalizado e um recurso unico, compartilhado entre as APIs
+# v1 e v2. Sem o sort -u, cada dominio aparecia duas vezes no
+# inventario e o script tentava apagar o mesmo recurso duas vezes.
+DOMINIOS=$( {
+    aws apigatewayv2 get-domain-names \
+        --query "Items[?ends_with(DomainName, '.${ZONA}')].DomainName" --output text 2>/dev/null
+    aws apigateway get-domain-names \
+        --query "items[?ends_with(domainName, '.${ZONA}')].domainName" --output text 2>/dev/null
+} | tr '\t' '\n' | grep -v '^$' | sort -u)
 
 CERTS=$(aws acm list-certificates \
     --query "CertificateSummaryList[?ends_with(DomainName, '.${ZONA}')].CertificateArn" --output text 2>/dev/null | tr '\t' '\n' | grep -v '^$')
@@ -146,14 +153,14 @@ echo "  Lambda:"
 echo "  API Gateway:"
 [ -n "$APIS_V2$APIS_V1" ] && { printf '%s\n' $APIS_V2 $APIS_V1 | while read -r A; do item "$A"; done; } || item "(nenhuma)"
 echo "  Domínios personalizados:"
-[ -n "$DOM_V2$DOM_V1" ] && { printf '%s\n' $DOM_V2 $DOM_V1 | while read -r D; do item "$D"; done; } || item "(nenhum)"
+[ -n "$DOMINIOS" ] && printf '%s\n' "$DOMINIOS" | while read -r D; do item "$D"; done || item "(nenhum)"
 echo "  Certificados ACM:"
 [ -n "$CERTS" ] && printf '%s\n' "$CERTS" | while read -r C; do item "${C##*/}"; done || item "(nenhum)"
 echo "  Registros DNS (fora o NS/SOA do apex):"
 [ -n "$REGISTROS" ] && printf '%s\n' "$REGISTROS" | while read -r N T; do item "$T $N"; done || item "(nenhum)"
 echo ""
 
-if [ -z "$BUCKETS$TEM_TABELA$TEM_LAMBDA$APIS_V2$APIS_V1$DOM_V2$DOM_V1$CERTS$REGISTROS" ]; then
+if [ -z "$BUCKETS$TEM_TABELA$TEM_LAMBDA$APIS_V2$APIS_V1$DOMINIOS$CERTS$REGISTROS" ]; then
     msg "Nada a remover. Ambiente já está limpo." "$GREEN"
     exit 0
 fi
@@ -202,40 +209,77 @@ if [ -n "$ZONE_ID" ] && [ -n "$REGISTROS" ]; then
     done
 fi
 
-# 2. Mapeamentos e dominios personalizados.
-for D in $DOM_V2; do
-    aws apigatewayv2 delete-domain-name --domain-name "$D" >/dev/null 2>&1 && item "domínio $D"
-done
-for D in $DOM_V1; do
-    aws apigateway delete-domain-name --domain-name "$D" >/dev/null 2>&1 && item "domínio $D"
-done
+# 2. Dominios personalizados.
+#
+# Um dominio e um recurso unico, mas pode ter sido criado pela API v1
+# ou pela v2, e cada uma so apaga o que conhece -- entao tentamos as
+# duas e so reportamos falha se nenhuma funcionar.
+if [ -n "$DOMINIOS" ]; then
+    echo "  Domínios personalizados:"
+    for D in $DOMINIOS; do
+        if aws apigatewayv2 delete-domain-name --domain-name "$D" >/dev/null 2>&1 ||
+           aws apigateway delete-domain-name --domain-name "$D" >/dev/null 2>&1; then
+            item "$D"
+        else
+            item "$D (falhou — veja a mensagem abaixo)"
+            aws apigateway delete-domain-name --domain-name "$D" 2>&1 | sed 's/^/       /' | head -3
+        fi
+    done
+fi
 
 # 3. APIs.
-for A in $APIS_V2; do
-    aws apigatewayv2 delete-api --api-id "$A" >/dev/null 2>&1 && item "API v2 $A"
-done
-for A in $APIS_V1; do
-    aws apigateway delete-rest-api --rest-api-id "$A" >/dev/null 2>&1 && item "API v1 $A"
-done
+if [ -n "$APIS_V2$APIS_V1" ]; then
+    echo "  APIs:"
+    for A in $APIS_V2; do
+        aws apigatewayv2 delete-api --api-id "$A" >/dev/null 2>&1 \
+            && item "API v2 $A" || item "API v2 $A (falhou)"
+    done
+    for A in $APIS_V1; do
+        aws apigateway delete-rest-api --rest-api-id "$A" >/dev/null 2>&1 \
+            && item "API v1 $A" || item "API v1 $A (falhou)"
+    done
+fi
 
-# 4. Certificados. Depois dos dominios: um certificado em uso nao pode
-#    ser apagado.
-for C in $CERTS; do
-    if aws acm delete-certificate --certificate-arn "$C" >/dev/null 2>&1; then
-        item "certificado ${C##*/}"
-    else
-        item "certificado ${C##*/} (em uso; tente de novo em alguns minutos)"
-    fi
-done
+# 4. Certificados.
+#
+# Um certificado em uso nao pode ser apagado, e a AWS leva algum tempo
+# para registrar que o dominio que o usava sumiu. Dai a pausa e a
+# segunda tentativa: sem elas, a primeira execucao do script sempre
+# deixava os certificados para tras.
+if [ -n "$CERTS" ]; then
+    echo "  Certificados ACM:"
+    sleep 15
+    for C in $CERTS; do
+        if aws acm delete-certificate --certificate-arn "$C" >/dev/null 2>&1; then
+            item "${C##*/}"
+        else
+            sleep 15
+            if aws acm delete-certificate --certificate-arn "$C" >/dev/null 2>&1; then
+                item "${C##*/}"
+            else
+                item "${C##*/} (ainda em uso; rode o script de novo em alguns minutos)"
+            fi
+        fi
+    done
+fi
 
 # 5. Lambda e DynamoDB.
-[ -n "$TEM_LAMBDA" ] && aws lambda delete-function --function-name "$TEM_LAMBDA" >/dev/null 2>&1 && item "lambda $TEM_LAMBDA"
-[ -n "$TEM_TABELA" ] && aws dynamodb delete-table --table-name "$TEM_TABELA" >/dev/null 2>&1 && item "tabela $TEM_TABELA"
+if [ -n "$TEM_LAMBDA$TEM_TABELA" ]; then
+    echo "  Lambda e DynamoDB:"
+    [ -n "$TEM_LAMBDA" ] && { aws lambda delete-function --function-name "$TEM_LAMBDA" >/dev/null 2>&1 \
+        && item "lambda $TEM_LAMBDA" || item "lambda $TEM_LAMBDA (falhou)"; }
+    [ -n "$TEM_TABELA" ] && { aws dynamodb delete-table --table-name "$TEM_TABELA" >/dev/null 2>&1 \
+        && item "tabela $TEM_TABELA" || item "tabela $TEM_TABELA (falhou)"; }
+fi
 
 # 6. Buckets.
-for B in $BUCKETS; do
-    aws s3 rb "s3://$B" --force >/dev/null 2>&1 && item "bucket $B" || item "bucket $B (falhou)"
-done
+if [ -n "$BUCKETS" ]; then
+    echo "  Buckets:"
+    for B in $BUCKETS; do
+        aws s3 rb "s3://$B" --force >/dev/null 2>&1 \
+            && item "$B" || item "$B (falhou)"
+    done
+fi
 
 # ------------------------------------------------------------
 # Estado local
