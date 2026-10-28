@@ -1,109 +1,70 @@
 ############################
+# FRONTEND
+#
+# Este modulo NAO usa aws_s3_bucket (nem aws_s3_bucket_acl, _policy,
+# _website_configuration, _ownership_controls, _public_access_block).
+#
+# Motivo: a SCP da organizacao do AWS Academy nega
+# s3:GetBucketObjectLockConfiguration. O provider le essa configuracao
+# de volta logo apos criar o bucket e, na particao "aws", trata o erro
+# como fatal -- entao todo apply morria com:
+#
+#   Error: reading S3 Bucket (wwwNN...) object lock configuration:
+#   ... AccessDenied ... explicit deny in a service control policy
+#
+# Deny de SCP nao se contorna de dentro da conta e o provider nao tem
+# flag para pular a leitura. O bucket passa a ser criado pelo AWS CLI
+# (scripts/criar_bucket_frontend.sh), que so escreve o que pedimos.
+#
+# O endpoint de website e deterministico, entao o CNAME e a integracao
+# do proxy continuam funcionando sem ler nada do S3.
+############################
+
+############################
 # SUFIXO NUMÉRICO ALEATÓRIO
+#
+# Nome de bucket e global na AWS: o sorteio evita colidir com outra
+# conta que ja tenha www.<turma>.<dominio>.
 ############################
 resource "random_integer" "frontend" {
   min = 0
   max = 99
 }
 
+data "aws_region" "atual" {}
+
 ############################
-# DOMÍNIO FINAL (bucket = cname)
+# DOMÍNIO E ENDPOINT
+#
+# O bucket precisa ter o mesmo nome do host, porque o S3 website
+# roteia pelo Host da requisicao.
 ############################
 locals {
   frontend_domain = "www${random_integer.frontend.result}.${var.frontend_nome_aluno}.${var.frontend_nome_dominio}"
+
+  # Mesma forma que o atributo website_endpoint do provider devolvia.
+  website_endpoint = "${local.frontend_domain}.s3-website-${data.aws_region.atual.name}.amazonaws.com"
+
+  bucket_arn = "arn:aws:s3:::${local.frontend_domain}"
 }
 
 ############################
-# BUCKET S3 (STATIC WEBSITE)
+# CRIAÇÃO DO BUCKET (via CLI)
+#
+# O script e idempotente: cria se faltar e reaplica website, public
+# access block e policy em toda execucao.
 ############################
-resource "aws_s3_bucket" "frontend" {
-  bucket = local.frontend_domain
-  tags   = var.frontend_tags
-}
-
-############################
-# OWNERSHIP CONTROLS
-############################
-resource "aws_s3_bucket_ownership_controls" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  rule {
-    object_ownership = "BucketOwnerPreferred"
-  }
-}
-
-############################
-# BLOQUEIO DE ACESSO PÚBLICO
-############################
-resource "aws_s3_bucket_public_access_block" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-############################
-# ACL DO BUCKET
-############################
-resource "aws_s3_bucket_acl" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-  acl    = "public-read"
-
-  depends_on = [
-    aws_s3_bucket_ownership_controls.frontend,
-    aws_s3_bucket_public_access_block.frontend
-  ]
-}
-
-############################
-# WEBSITE CONFIG
-############################
-resource "aws_s3_bucket_website_configuration" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  index_document {
-    suffix = "index.html"
+resource "null_resource" "criar_bucket" {
+  triggers = {
+    bucket = local.frontend_domain
+    regiao = data.aws_region.atual.name
   }
 
-  error_document {
-    key = "index.html"
+  provisioner "local-exec" {
+    working_dir = "${path.root}/.."
+
+    command = "bash ./scripts/criar_bucket_frontend.sh ${local.frontend_domain} ${data.aws_region.atual.name}"
   }
-}
-
-############################
-# ESPERA PROPAGAÇÃO
-############################
-resource "time_sleep" "wait_for_s3_block_config" {
-  depends_on = [
-    aws_s3_bucket_public_access_block.frontend,
-    aws_s3_bucket_ownership_controls.frontend
-  ]
-
-  create_duration = "15s"
-}
-
-############################
-# POLICY PÚBLICA (READ)
-############################
-resource "aws_s3_bucket_policy" "frontend_public_read" {
-  bucket = aws_s3_bucket.frontend.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = "*"
-      Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.frontend.arn}/*"
-    }]
-  })
-
-  depends_on = [
-    aws_s3_bucket_public_access_block.frontend,
-    time_sleep.wait_for_s3_block_config
-  ]
 }
 
 ############################
@@ -145,30 +106,27 @@ resource "null_resource" "build_frontend" {
 #
 # O upload usava aws_s3_object com for_each sobre um fileset do
 # frontend_build. O fileset e resolvido no PLAN, antes de o
-# null_resource acima gerar o build -- entao no primeiro apply a pasta
-# nem existia, nenhum objeto entrava no plano e o site subia vazio
-# (bucket criado, CNAME criado, zero arquivos).
+# null_resource gerar o build -- entao no primeiro apply a pasta nem
+# existia, nenhum objeto entrava no plano e o site subia vazio.
 #
 # O sync roda no apply, depois do build, e o --delete remove sobras de
-# builds anteriores. O proprio CLI define o Content-Type pela extensao,
-# o que tornou o mapa de mime types desnecessario.
+# builds anteriores. O proprio CLI define o Content-Type pela extensao.
 ############################
 resource "null_resource" "upload_frontend" {
   triggers = {
-    bucket   = aws_s3_bucket.frontend.id
+    bucket   = local.frontend_domain
     build_id = null_resource.build_frontend.id
   }
 
   provisioner "local-exec" {
     working_dir = "${path.root}/.."
 
-    command = "aws s3 sync ./terraform/frontend_build s3://${aws_s3_bucket.frontend.id} --delete"
+    command = "aws s3 sync ./terraform/frontend_build s3://${local.frontend_domain} --delete"
   }
 
   depends_on = [
-    null_resource.build_frontend,
-    aws_s3_bucket_policy.frontend_public_read,
-    aws_s3_bucket_website_configuration.frontend
+    null_resource.criar_bucket,
+    null_resource.build_frontend
   ]
 }
 
@@ -181,12 +139,9 @@ resource "aws_route53_record" "frontend" {
   zone_id = var.frontend_id_zona_hospedada
   ttl     = 60
 
-  records = [
-    aws_s3_bucket_website_configuration.frontend.website_endpoint
-  ]
+  records = [local.website_endpoint]
 
   depends_on = [
-    aws_s3_bucket_website_configuration.frontend,
-    aws_s3_bucket_policy.frontend_public_read
+    null_resource.criar_bucket
   ]
 }

@@ -1,11 +1,14 @@
+# O bucket e criado pelo AWS CLI (ver main.tf), entao os valores abaixo
+# vem dos locals, nao de atributos de um recurso aws_s3_bucket.
+
 output "frontend_bucket_name" {
   description = "Nome do bucket S3 do frontend"
-  value       = aws_s3_bucket.frontend.id
+  value       = local.frontend_domain
 }
 
 output "frontend_bucket_arn" {
   description = "ARN do bucket S3 do frontend"
-  value       = aws_s3_bucket.frontend.arn
+  value       = local.bucket_arn
 }
 
 output "frontend_domain_name" {
@@ -36,5 +39,5 @@ output "frontend_url" {
 
 output "frontend_website_endpoint" {
   description = "Endpoint do S3 website do frontend"
-  value       = aws_s3_bucket_website_configuration.frontend.website_endpoint
+  value       = local.website_endpoint
 }

@@ -42,14 +42,20 @@ if [ -f "$BASE_DIR/terraform/modules/lambda_api/lambda_function.zip" ]; then
     check_status "Remoção do arquivo ZIP do Lambda"
 fi
 
-# 3. Esvaziar bucket S3 do frontend antes do destroy
+# 3. Remover o bucket S3 do frontend
+#
+# O bucket e criado pelo AWS CLI, fora do Terraform (ver o cabecalho de
+# modules/frontend/main.tf: a SCP do AWS Academy inviabiliza o recurso
+# aws_s3_bucket). Entao o destroy nao o remove -- e preciso fazer aqui,
+# antes, enquanto o output ainda existe.
 cd "$BASE_DIR/terraform"
 BUCKET_NAME=$(terraform output -raw frontend_bucket_name 2>/dev/null)
 cd "$BASE_DIR"
 
-if [ -n "$BUCKET_NAME" ]; then
-  print_message "$YELLOW" "Esvaziando bucket S3: $BUCKET_NAME"
-  aws s3 rm "s3://$BUCKET_NAME" --recursive
+if [ -n "$BUCKET_NAME" ] && aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+  print_message "$YELLOW" "Removendo bucket S3: $BUCKET_NAME"
+  aws s3 rb "s3://$BUCKET_NAME" --force
+  check_status "Remoção do bucket $BUCKET_NAME"
 fi
 
 # 4. Executar terraform destroy
