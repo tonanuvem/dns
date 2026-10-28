@@ -67,9 +67,61 @@ resource "aws_api_gateway_integration" "s3_integration" {
   }
 }
 
+# ============================================================
+# RAIZ "/"
+#
+# O recurso {proxy+} casa /index.html e /assets/..., mas NAO casa a
+# raiz. Sem um metodo no recurso raiz, nenhuma rota casava com "/" e o
+# API Gateway respondia 403 "Missing Authentication Token" -- o jeito
+# dele de dizer que nao encontrou rota. Na pratica a URL HTTPS nao
+# abria: so funcionava digitando /index.html.
+#
+# Nao leva request_parameters nem {proxy} na uri: aqui nao existe
+# segmento de caminho para repassar, e o proprio S3 devolve o
+# index.html configurado como documento de indice.
+# ============================================================
+
+resource "aws_api_gateway_method" "root" {
+  rest_api_id   = aws_api_gateway_rest_api.s3_proxy.id
+  resource_id   = aws_api_gateway_rest_api.s3_proxy.root_resource_id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "root" {
+  rest_api_id             = aws_api_gateway_rest_api.s3_proxy.id
+  resource_id             = aws_api_gateway_rest_api.s3_proxy.root_resource_id
+  http_method             = aws_api_gateway_method.root.http_method
+  integration_http_method = "ANY"
+  type                    = "HTTP_PROXY"
+  uri                     = "http://${var.proxy_bucket_name}/"
+}
+
 resource "aws_api_gateway_deployment" "s3_deployment" {
-  depends_on = [aws_api_gateway_integration.s3_integration]
+  depends_on = [
+    aws_api_gateway_integration.s3_integration,
+    aws_api_gateway_integration.root
+  ]
+
   rest_api_id = aws_api_gateway_rest_api.s3_proxy.id
+
+  # Sem este trigger o deployment so e criado uma vez: mudar rotas ou
+  # integracoes depois disso alteraria a API, mas o stage continuaria
+  # servindo o deployment antigo -- e a correcao da raiz acima nao
+  # chegaria a um ambiente ja implantado.
+  triggers = {
+    redeploy = sha1(jsonencode([
+      aws_api_gateway_resource.proxy.id,
+      aws_api_gateway_method.any_method.id,
+      aws_api_gateway_integration.s3_integration.id,
+      aws_api_gateway_method.root.id,
+      aws_api_gateway_integration.root.id,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_api_gateway_stage" "s3_stage" {
