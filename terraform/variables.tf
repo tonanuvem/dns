@@ -9,11 +9,11 @@ variable "nome_aluno" {
   type        = string
 }
 
+# O default era "dns.lab", que nao existe e divergia do valor usado
+# pelo config.sh e pelo tfvars.
 variable "nome_dominio" {
   description = "Domínio base, delegado para a conta do laboratório"
   type        = string
-  # O default era "dns.lab", que nao existe e divergia do valor usado
-  # pelo config.sh e pelo tfvars.
   default     = "lab.tonanuvem.com"
 }
 
