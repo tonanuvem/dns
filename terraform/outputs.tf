@@ -19,7 +19,7 @@ output "frontend_url" {
 
 output "frontend_url_https" {
   description = "Mesmo site com TLS, servido pelo proxy do API Gateway"
-  value       = "https://https${module.frontend.frontend_sufixo}.${var.nome_aluno}.${var.nome_dominio}"
+  value       = "https://https.${var.nome_aluno}.${var.nome_dominio}"
 }
 
 output "api_url" {

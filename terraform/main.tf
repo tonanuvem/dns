@@ -122,13 +122,16 @@ module "apigw_s3_proxy" {
 
   proxy_bucket_name   = module.frontend.frontend_website_endpoint  # ex: "www7.aluno.lab.tonanuvem.com.s3-website-us-east-1.amazonaws.com"
 
-  # O hostname do proxy deriva do MESMO sufixo sorteado do bucket. Era
-  # "www2" fixo: quando o sorteio caisse em 2, o Route 53 receberia um
-  # CNAME (frontend -> S3) e um A-alias (proxy -> API Gateway) com o
-  # mesmo nome, e o apply quebraria. Os dois hostnames precisam ser
-  # distintos, porque apontam para servicos diferentes -- o par
-  # wwwNN / httpsNN garante isso e ainda deixa claro qual tem TLS.
-  proxy_domain        = "https${module.frontend.frontend_sufixo}.${var.nome_aluno}.${var.nome_dominio}"
+  # Era "www2" fixo, e o bucket carrega um sufixo sorteado de 0 a 99:
+  # um sorteio de 2 colocaria um CNAME (frontend -> S3) e um A-alias
+  # (proxy -> API Gateway) com o mesmo nome na zona, quebrando o apply.
+  #
+  # O sufixo existe porque nome de bucket S3 e global na AWS. Este
+  # hostname nao e um bucket -- e um alias de API Gateway, que so
+  # precisa ser unico DENTRO da zona. Entao ele fica estatico e sem
+  # numero: nunca colide com wwwNN, e continua conhecido em tempo de
+  # plan, que e o que o for_each do cert_validation exige.
+  proxy_domain        = "https.${var.nome_aluno}.${var.nome_dominio}"
   proxy_zone_id       = data.aws_route53_zone.selecionada.zone_id
   proxy_tags          = var.tags
 }

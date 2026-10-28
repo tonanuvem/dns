@@ -20,10 +20,10 @@ output "frontend_domain_name" {
 }
 
 output "frontend_sufixo" {
-  description = "Sufixo numérico sorteado, usado para emparelhar os hostnames do frontend"
-  # O proxy HTTPS deriva o hostname dele deste mesmo numero. Com um
-  # valor fixo (era "www2"), um sorteio de 2 faria o Route 53 receber
-  # um CNAME e um A-alias com o mesmo nome, e o apply quebraria.
+  description = "Sufixo numérico sorteado que compõe o nome do bucket"
+  # Existe porque nome de bucket S3 e global na AWS. Nao use este
+  # valor para montar outros hostnames: ele so e conhecido em tempo de
+  # apply, e um for_each chaveado por ele quebra o plan.
   value = random_integer.frontend.result
 }
 
