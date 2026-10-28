@@ -16,7 +16,7 @@ import sys
 import types
 
 # --- boto3 falso, instalado antes do import do modulo ---
-ESTADO = {"itens": {}, "r53": []}
+ESTADO = {"itens": {}, "r53": [], "lotes": []}
 
 
 class FakeTable:
@@ -41,8 +41,12 @@ class FakeDynamo:
 
 class FakeR53:
     def change_resource_record_sets(self, HostedZoneId, ChangeBatch):
-        ch = ChangeBatch["Changes"][0]
-        ESTADO["r53"].append((ch["Action"], ch["ResourceRecordSet"]["Name"]))
+        lote = [
+            (c["Action"], c["ResourceRecordSet"]["Name"])
+            for c in ChangeBatch["Changes"]
+        ]
+        ESTADO["r53"].extend(lote)
+        ESTADO["lotes"].append(lote)
         return {}
 
 
@@ -122,6 +126,11 @@ r = chamar("POST", "/prod/registros", {"alias": "joao", "endereco_ip": "1.2.3.4"
 checar("POST valido -> 201", r["statusCode"] == 201, r)
 checar("R53 recebeu UPSERT joao", ("UPSERT", "joao.aluno.lab.tonanuvem.com") in ESTADO["r53"], ESTADO["r53"])
 
+# 5b. O wildcard, para o proxy reverso dentro da VM do aluno.
+checar("R53 recebeu UPSERT *.joao",
+       ("UPSERT", "*.joao.aluno.lab.tonanuvem.com") in ESTADO["r53"], ESTADO["r53"])
+checar("os dois foram num lote so", len(ESTADO["lotes"][-1]) == 2, ESTADO["lotes"][-1])
+
 # 6. Duplicado
 r = chamar("POST", "/prod/registros", {"alias": "joao", "endereco_ip": "5.6.7.8"})
 checar("POST duplicado -> 409", r["statusCode"] == 409, r)
@@ -183,6 +192,29 @@ r = chamar("DELETE", "/registros/orfao")
 checar("DELETE com registro orfao -> 200", r["statusCode"] == 200, r)
 checar("orfao saiu do DynamoDB", "orfao" not in ESTADO["itens"])
 g.route53.change_resource_record_sets = FakeR53().change_resource_record_sets
+
+# 16b. DELETE parcial: o lote com os dois falha (um ja nao existe), mas
+# a remocao individual funciona. Sem o fallback, o lote atomico levaria
+# os dois embora -- isto e, nenhum seria removido.
+ESTADO["itens"]["parcial"] = {"alias": "parcial", "endereco_ip": "7.7.7.7"}
+ESTADO["r53"].clear()
+_r53_ok = FakeR53().change_resource_record_sets
+
+
+def falhar_so_no_lote(HostedZoneId, ChangeBatch):
+    if len(ChangeBatch["Changes"]) > 1:
+        raise ClientError({"Error": {"Code": "InvalidChangeBatch"}}, "change")
+    return _r53_ok(HostedZoneId=HostedZoneId, ChangeBatch=ChangeBatch)
+
+
+g.route53.change_resource_record_sets = falhar_so_no_lote
+r = chamar("DELETE", "/registros/parcial")
+checar("DELETE com lote parcial -> 200", r["statusCode"] == 200, r)
+checar("caiu para remocao individual nos dois nomes",
+       ESTADO["r53"] == [("DELETE", "parcial.aluno.lab.tonanuvem.com"),
+                         ("DELETE", "*.parcial.aluno.lab.tonanuvem.com")],
+       ESTADO["r53"])
+g.route53.change_resource_record_sets = _r53_ok
 
 # 17. OPTIONS (preflight)
 r = chamar("OPTIONS", "/registros", senha="qualquer")

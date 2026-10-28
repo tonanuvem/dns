@@ -198,21 +198,69 @@ def _nome_registro(alias):
     return f'{alias}.{DOMINIO}'
 
 
-def _aplicar_no_route53(acao, alias, endereco_ip):
+def _nomes_registro(alias):
+    """Os dois nomes que cada aluno recebe.
+
+    O wildcard NAO cobre o nome base: *.joao.<zona> casa
+    app.joao.<zona>, mas nao joao.<zona>. Por isso os dois existem.
+
+    Juntos eles atendem o proxy reverso que roda dentro da VM do
+    aluno: qualquer subdominio chega no mesmo IP, e quem decide o
+    destino e o proxy, pelo cabecalho Host.
+    """
+    base = _nome_registro(alias)
+    return [base, f'*.{base}']
+
+
+def _mudanca(acao, nome, endereco_ip):
+    return {
+        'Action': acao,
+        'ResourceRecordSet': {
+            'Name': nome,
+            'Type': 'A',
+            'TTL': TTL_DNS,
+            'ResourceRecords': [{'Value': endereco_ip}]
+        }
+    }
+
+
+def _enviar_ao_route53(mudancas):
     route53.change_resource_record_sets(
         HostedZoneId=ZONA_ID,
-        ChangeBatch={
-            'Changes': [{
-                'Action': acao,
-                'ResourceRecordSet': {
-                    'Name': _nome_registro(alias),
-                    'Type': 'A',
-                    'TTL': TTL_DNS,
-                    'ResourceRecords': [{'Value': endereco_ip}]
-                }
-            }]
-        }
+        ChangeBatch={'Changes': mudancas}
     )
+
+
+def _aplicar_no_route53(acao, alias, endereco_ip):
+    """Aplica a acao aos dois nomes, num lote so (atomico)."""
+    _enviar_ao_route53([
+        _mudanca(acao, nome, endereco_ip)
+        for nome in _nomes_registro(alias)
+    ])
+
+
+def _remover_do_route53(alias, endereco_ip):
+    """Remove os dois nomes, tolerando que um deles ja nao exista.
+
+    Um ChangeBatch e atomico: se o wildcard foi apagado a mao no
+    console, ou se o registro vem de antes de o wildcard existir, o
+    lote inteiro falha e NENHUM dos dois sai. Dai a segunda tentativa,
+    um nome por vez.
+    """
+    try:
+        _aplicar_no_route53('DELETE', alias, endereco_ip)
+        return
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'InvalidChangeBatch':
+            raise
+
+    for nome in _nomes_registro(alias):
+        try:
+            _enviar_ao_route53([_mudanca('DELETE', nome, endereco_ip)])
+        except ClientError as e:
+            if e.response['Error']['Code'] != 'InvalidChangeBatch':
+                raise
+            print(f"_remover_do_route53: {nome} ja nao existia")
 
 
 def lambda_handler(event, context):
@@ -322,7 +370,7 @@ def criar_registro(dados, token=None):
 
     table.put_item(Item=item)
 
-    print(f"criar_registro: {_nome_registro(alias)} -> {endereco_ip}"
+    print(f"criar_registro: {_nome_registro(alias)} (+ wildcard) -> {endereco_ip}"
           f"{' (com dono)' if token else ''}")
 
     return _resposta(201, _publico(item))
@@ -370,7 +418,7 @@ def atualizar_registro(subdominio, dados, token=None):
 
     table.put_item(Item=item)
 
-    print(f"atualizar_registro: {_nome_registro(alias)} -> {endereco_ip}")
+    print(f"atualizar_registro: {_nome_registro(alias)} (+ wildcard) -> {endereco_ip}")
 
     return _resposta(200, _publico(item))
 
@@ -384,19 +432,14 @@ def deletar_registro(subdominio, token=None):
     if not _dono_confere(item, token):
         return _erro(403, f"O alias '{subdominio}' pertence a outra pessoa")
 
-    try:
-        _aplicar_no_route53('DELETE', subdominio, item['endereco_ip'])
-    except ClientError as e:
-        # O registro pode ter sido apagado direto no console do Route 53.
-        # Antes isso virava um 500 e o item ficava preso no DynamoDB, sem
-        # jeito de remover pela interface.
-        if e.response['Error']['Code'] != 'InvalidChangeBatch':
-            raise
-        print(f"deletar_registro: {_nome_registro(subdominio)} ja nao existia no Route 53")
+    # Tolera o registro ja ter sido apagado no console do Route 53.
+    # Antes isso virava 500 e o item ficava preso no DynamoDB, sem jeito
+    # de remover pela interface.
+    _remover_do_route53(subdominio, item['endereco_ip'])
 
     table.delete_item(Key={'alias': subdominio})
 
-    print(f"deletar_registro: {_nome_registro(subdominio)}")
+    print(f"deletar_registro: {_nome_registro(subdominio)} (+ wildcard)")
 
     return _resposta(200, {'id': subdominio})
 
