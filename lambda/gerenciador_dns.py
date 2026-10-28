@@ -8,6 +8,7 @@ O frontend e o React-Admin, entao a listagem devolve o header
 Content-Range e cada item carrega um campo "id".
 """
 
+import hashlib
 import ipaddress
 import json
 import hmac
@@ -80,6 +81,69 @@ def _erro(status, mensagem):
 def verificar_senha(senha_fornecida):
     # compare_digest exige str; um header ausente chega como None.
     return hmac.compare_digest(senha_fornecida or '', SENHA_API)
+
+
+# ============================================================
+# POSSE DO ALIAS
+#
+# A senha da API e a mesma para a turma inteira, entao ela diz "voce e
+# desta turma", nunca "este registro e seu". Sem mais nada, qualquer
+# aluno sobrescreveria o alias de outro -- e o IP da VM muda a cada
+# aula, entao re-registrar o mesmo nome precisa funcionar.
+#
+# O dns.sh gera um token aleatorio por aluno, guarda em
+# ~/.fiap_dns_token e o envia ao criar. Guardamos apenas o SHA-256: da
+# para apagar o registro pelo console do DynamoDB quando o aluno perde
+# a VM, mas ninguem le o token de volta.
+#
+# Registro criado sem token (pelo React-Admin, por exemplo) nao ganha
+# dono e continua editavel por quem tiver a senha da turma.
+# ============================================================
+
+def _hash_token(token):
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def _extrair_token(headers, dados):
+    """Le o token do header x-dns-token ou do corpo.
+
+    O DELETE do React-Admin nao manda corpo, e um curl de DELETE com
+    corpo e desajeitado -- dai aceitar pelo header tambem.
+    """
+    for k, v in (headers or {}).items():
+        if k.lower() == 'x-dns-token' and v:
+            return v
+
+    if isinstance(dados, dict):
+        return dados.get('token') or None
+
+    return None
+
+
+def _publico(item):
+    """Versao do item que pode sair na resposta.
+
+    Remove o token_hash: a listagem devolve os itens inteiros, e sem
+    isto o hash de todo mundo ficaria exposto a qualquer aluno com a
+    senha da turma -- material para um ataque de dicionario offline.
+    Acrescenta o "id" que o React-Admin exige.
+    """
+    publico = {k: v for k, v in item.items() if k != 'token_hash'}
+    publico['id'] = item['alias']
+    return publico
+
+
+def _dono_confere(item, token):
+    """True quando o registro nao tem dono ou o token bate."""
+    esperado = item.get('token_hash')
+
+    if not esperado:
+        return True
+
+    if not token:
+        return False
+
+    return hmac.compare_digest(_hash_token(token), esperado)
 
 
 def _normalizar_path(event):
@@ -180,19 +244,19 @@ def lambda_handler(event, context):
 
         if partes and partes[0] == 'registros':
             subdominio = partes[1] if len(partes) > 1 else None
+            corpo = json.loads(event.get('body') or '{}')
+            token = _extrair_token(headers, corpo)
 
             if metodo == 'GET' and subdominio is None:
                 return listar_registros()
             if metodo == 'GET':
                 return obter_registro(subdominio)
             if metodo == 'POST' and subdominio is None:
-                return criar_registro(json.loads(event.get('body') or '{}'))
+                return criar_registro(corpo, token)
             if metodo == 'PUT' and subdominio:
-                return atualizar_registro(
-                    subdominio, json.loads(event.get('body') or '{}')
-                )
+                return atualizar_registro(subdominio, corpo, token)
             if metodo == 'DELETE' and subdominio:
-                return deletar_registro(subdominio)
+                return deletar_registro(subdominio, token)
 
         return _erro(404, 'Rota nao encontrada')
 
@@ -217,9 +281,7 @@ def listar_registros():
         kwargs['ExclusiveStartKey'] = resposta['LastEvaluatedKey']
 
     registros.sort(key=lambda r: r.get('alias', ''))
-
-    for registro in registros:
-        registro['id'] = registro['alias']
+    registros = [_publico(r) for r in registros]
 
     qtd = len(registros)
     content_range = f"registros 0-{qtd - 1}/{qtd}" if qtd else "registros 0-0/0"
@@ -234,11 +296,10 @@ def obter_registro(subdominio):
     if not item:
         return _erro(404, 'Registro nao encontrado')
 
-    item['id'] = item['alias']
-    return _resposta(200, item)
+    return _resposta(200, _publico(item))
 
 
-def criar_registro(dados):
+def criar_registro(dados, token=None):
     alias, erro = _validar_entrada(dados.get('alias'), dados.get('endereco_ip'))
     if erro:
         return _erro(400, erro)
@@ -255,15 +316,19 @@ def criar_registro(dados):
         'endereco_ip': endereco_ip,
         'data_criacao': datetime.now().isoformat()
     }
+
+    if token:
+        item['token_hash'] = _hash_token(token)
+
     table.put_item(Item=item)
 
-    print(f"criar_registro: {_nome_registro(alias)} -> {endereco_ip}")
+    print(f"criar_registro: {_nome_registro(alias)} -> {endereco_ip}"
+          f"{' (com dono)' if token else ''}")
 
-    item['id'] = alias
-    return _resposta(201, item)
+    return _resposta(201, _publico(item))
 
 
-def atualizar_registro(subdominio, dados):
+def atualizar_registro(subdominio, dados, token=None):
     """Troca o IP de um alias existente.
 
     A tela de edicao do React-Admin envia PUT /registros/{id}; sem esta
@@ -275,6 +340,9 @@ def atualizar_registro(subdominio, dados):
 
     if not item_atual:
         return _erro(404, 'Registro nao encontrado')
+
+    if not _dono_confere(item_atual, token):
+        return _erro(403, f"O alias '{subdominio}' pertence a outra pessoa")
 
     alias, erro = _validar_entrada(subdominio, dados.get('endereco_ip'))
     if erro:
@@ -294,19 +362,27 @@ def atualizar_registro(subdominio, dados):
         'data_criacao': item_atual.get('data_criacao', datetime.now().isoformat()),
         'data_atualizacao': datetime.now().isoformat()
     }
+
+    # O dono e preservado: sem isto, uma atualizacao apagaria o
+    # token_hash e o registro voltaria a ser de todo mundo.
+    if item_atual.get('token_hash'):
+        item['token_hash'] = item_atual['token_hash']
+
     table.put_item(Item=item)
 
     print(f"atualizar_registro: {_nome_registro(alias)} -> {endereco_ip}")
 
-    item['id'] = alias
-    return _resposta(200, item)
+    return _resposta(200, _publico(item))
 
 
-def deletar_registro(subdominio):
+def deletar_registro(subdominio, token=None):
     item = table.get_item(Key={'alias': subdominio}).get('Item')
 
     if not item:
         return _erro(404, 'Registro nao encontrado')
+
+    if not _dono_confere(item, token):
+        return _erro(403, f"O alias '{subdominio}' pertence a outra pessoa")
 
     try:
         _aplicar_no_route53('DELETE', subdominio, item['endereco_ip'])

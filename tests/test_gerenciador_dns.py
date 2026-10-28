@@ -77,13 +77,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import gerenciador_dns as g  # noqa: E402
 
 
-def chamar(metodo, path, corpo=None, stage="prod", senha="aluno"):
+def chamar(metodo, path, corpo=None, stage="prod", senha="aluno", token_header=None):
     evento = {
         "httpMethod": metodo,
         "path": path,
         "headers": {"X-Api-Key": senha},
         "requestContext": {"stage": stage},
     }
+    if token_header is not None:
+        evento["headers"]["x-dns-token"] = token_header
     if corpo is not None:
         evento["body"] = json.dumps(corpo)
     return g.lambda_handler(evento, None)
@@ -198,6 +200,62 @@ checar("rota desconhecida -> 404", r["statusCode"] == 404, r)
 ev = {"httpMethod": "POST", "path": "/registros", "headers": {"x-api-key": "aluno"}, "body": "{nao-json"}
 r = g.lambda_handler(ev, None)
 checar("body nao-JSON -> 400", r["statusCode"] == 400, r)
+
+# ============================================================
+# POSSE DO ALIAS (token do dns.sh)
+# ============================================================
+
+ESTADO["itens"].clear()
+
+# 21. Criar COM token
+r = chamar("POST", "/registros", {"alias": "pedro", "endereco_ip": "1.1.1.1", "token": "segredo-do-pedro"})
+checar("POST com token -> 201", r["statusCode"] == 201, r)
+checar("token_hash gravado", "token_hash" in ESTADO["itens"]["pedro"], ESTADO["itens"]["pedro"])
+checar("token_hash NAO volta na resposta", "token_hash" not in json.loads(r["body"]), r["body"])
+
+# 22. Listagem nao vaza o hash
+r = chamar("GET", "/registros")
+checar("listagem nao vaza token_hash", all("token_hash" not in i for i in json.loads(r["body"])), r["body"])
+
+# 23. GET por id nao vaza o hash
+r = chamar("GET", "/registros/pedro")
+checar("GET por id nao vaza token_hash", "token_hash" not in json.loads(r["body"]), r["body"])
+
+# 24. PUT sem token -> 403
+r = chamar("PUT", "/registros/pedro", {"endereco_ip": "2.2.2.2"})
+checar("PUT sem token -> 403", r["statusCode"] == 403, r)
+checar("IP nao mudou", ESTADO["itens"]["pedro"]["endereco_ip"] == "1.1.1.1")
+
+# 25. PUT com token errado -> 403
+r = chamar("PUT", "/registros/pedro", {"endereco_ip": "2.2.2.2", "token": "chute"})
+checar("PUT com token errado -> 403", r["statusCode"] == 403, r)
+
+# 26. PUT com token certo, no corpo (re-registro de aula nova)
+r = chamar("PUT", "/registros/pedro", {"endereco_ip": "2.2.2.2", "token": "segredo-do-pedro"})
+checar("PUT com token certo -> 200", r["statusCode"] == 200, r)
+checar("IP atualizado", ESTADO["itens"]["pedro"]["endereco_ip"] == "2.2.2.2")
+checar("dono preservado no PUT", "token_hash" in ESTADO["itens"]["pedro"], ESTADO["itens"]["pedro"])
+
+# 27. PUT com token pelo header
+r = chamar("PUT", "/registros/pedro", {"endereco_ip": "3.3.3.3"}, token_header="segredo-do-pedro")
+checar("PUT com token no header -> 200", r["statusCode"] == 200, r)
+
+# 28. DELETE sem token -> 403
+r = chamar("DELETE", "/registros/pedro")
+checar("DELETE sem token -> 403", r["statusCode"] == 403, r)
+checar("registro continua", "pedro" in ESTADO["itens"])
+
+# 29. DELETE com token pelo header -> 200
+r = chamar("DELETE", "/registros/pedro", token_header="segredo-do-pedro")
+checar("DELETE com token no header -> 200", r["statusCode"] == 200, r)
+checar("registro removido", "pedro" not in ESTADO["itens"])
+
+# 30. Registro SEM dono continua editavel sem token (React-Admin)
+chamar("POST", "/registros", {"alias": "semdono", "endereco_ip": "4.4.4.4"})
+r = chamar("PUT", "/registros/semdono", {"endereco_ip": "5.5.5.5"})
+checar("PUT em registro sem dono -> 200", r["statusCode"] == 200, r)
+r = chamar("DELETE", "/registros/semdono")
+checar("DELETE em registro sem dono -> 200", r["statusCode"] == 200, r)
 
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")
