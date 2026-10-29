@@ -16,7 +16,7 @@ import sys
 import types
 
 # --- boto3 falso, instalado antes do import do modulo ---
-ESTADO = {"itens": {}, "r53": [], "lotes": []}
+ESTADO = {"itens": {}, "r53": [], "lotes": [], "zona": {}}
 
 
 class FakeTable:
@@ -47,7 +47,40 @@ class FakeR53:
         ]
         ESTADO["r53"].extend(lote)
         ESTADO["lotes"].append(lote)
+
+        # O TXT do ACME e lido de volta antes de cada escrita (para somar
+        # e subtrair um valor em vez de sobrescrever), entao o fake tem
+        # de guardar a zona, e nao so o historico de chamadas.
+        for c in ChangeBatch["Changes"]:
+            rr = c["ResourceRecordSet"]
+            chave = (rr["Name"].rstrip(".").lower(), rr["Type"])
+            if c["Action"] == "DELETE":
+                ESTADO["zona"].pop(chave, None)
+            else:
+                ESTADO["zona"][chave] = {
+                    "Name": rr["Name"],
+                    "Type": rr["Type"],
+                    "TTL": rr["TTL"],
+                    "ResourceRecords": [dict(v) for v in rr["ResourceRecords"]],
+                }
         return {}
+
+    def list_resource_record_sets(self, HostedZoneId, StartRecordName,
+                                  StartRecordType, MaxItems=None):
+        chave = (StartRecordName.rstrip(".").lower(), StartRecordType)
+        if chave in ESTADO["zona"]:
+            return {"ResourceRecordSets": [dict(ESTADO["zona"][chave])]}
+
+        # A API de verdade nao devolve lista vazia quando o nome pedido
+        # nao existe: devolve o registro SEGUINTE da zona. Devolver um
+        # vizinho aqui e de proposito -- e o que prova que o codigo
+        # filtra pelo nome exato em vez de confiar na posicao.
+        return {"ResourceRecordSets": [{
+            "Name": "zzz-vizinho." + os.environ["NAMESERVERS"] + ".",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [{"Value": '"nao-sou-eu"'}],
+        }]}
 
 
 fake_boto3 = types.ModuleType("boto3")
@@ -339,6 +372,119 @@ permitidos = [h.strip().lower()
               for h in g.COMMON_HEADERS["Access-Control-Allow-Headers"].split(",")]
 checar("CORS permite x-admin-key", "x-admin-key" in permitidos, permitidos)
 checar("CORS permite x-api-key", "x-api-key" in permitidos, permitidos)
+
+# ============================================================
+# 9. Desafio DNS-01 do ACME (/acme/present e /acme/cleanup)
+#
+# A rota escreve TXT direto na zona da turma. O que a torna segura sao
+# as recusas, nao o caminho felizes -- por isso elas vem primeiro.
+# ============================================================
+
+ZONA = os.environ["NAMESERVERS"]
+NOME_ACME = "_acme-challenge." + ZONA
+CHAVE_ACME = (NOME_ACME, "TXT")
+VALOR_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+VALOR_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+
+def acme(acao, fqdn, valor, **kw):
+    return chamar("POST", f"/acme/{acao}", {"fqdn": fqdn, "value": valor}, **kw)
+
+
+# --- recusas ---
+
+r = acme("present", NOME_ACME, VALOR_A)
+checar("acme sem x-admin-key -> 403", r["statusCode"] == 403, r)
+
+# A senha da turma esta no bundle do frontend e no dns.sh: se ela
+# valesse aqui, qualquer aluno forjaria validacao ACME da zona.
+r = acme("present", NOME_ACME, VALOR_A, admin="aluno")
+checar("acme com a senha da TURMA -> 403", r["statusCode"] == 403, r)
+
+r = acme("present", "_acme-challenge.outrazona.exemplo.com", VALOR_A,
+         admin="senha-do-instrutor")
+checar("acme fora da zona -> 400", r["statusCode"] == 400, r)
+
+# "...tonanuvem.com" sem o ponto antes casaria num endsWith ingenuo.
+r = acme("present", "_acme-challenge.zonadoutro-" + ZONA, VALOR_A,
+         admin="senha-do-instrutor")
+checar("acme em zona de nome parecido -> 400", r["statusCode"] == 400, r)
+
+r = acme("present", "qualquercoisa." + ZONA, VALOR_A, admin="senha-do-instrutor")
+checar("acme sem o prefixo _acme-challenge. -> 400", r["statusCode"] == 400, r)
+
+# Uma aspa no valor quebraria a codificacao do TXT no Route 53.
+r = acme("present", NOME_ACME, 'abc" "injetado', admin="senha-do-instrutor")
+checar("acme com aspas no value -> 400", r["statusCode"] == 400, r)
+
+r = chamar("POST", "/acme/present", {"fqdn": NOME_ACME}, admin="senha-do-instrutor")
+checar("acme sem o campo value -> 400", r["statusCode"] == 400, r)
+
+r = chamar("GET", "/acme/present", admin="senha-do-instrutor")
+checar("GET em /acme/present -> 404", r["statusCode"] == 404, r)
+
+checar("nenhuma recusa escreveu na zona", CHAVE_ACME not in ESTADO["zona"],
+       ESTADO["zona"])
+
+# --- caminho felizes ---
+
+# O lego manda o fqdn com ponto final; tem de ser normalizado, senao a
+# comparacao com o que ja existe na zona nunca casa.
+r = acme("present", NOME_ACME + ".", VALOR_A, admin="senha-do-instrutor")
+checar("present -> 200", r["statusCode"] == 200, r)
+rrset = ESTADO["zona"].get(CHAVE_ACME, {})
+checar("present criou o TXT", rrset.get("Type") == "TXT", rrset)
+checar("present usou TTL 60", rrset.get("TTL") == 60, rrset)
+checar("present gravou o valor entre aspas",
+       rrset.get("ResourceRecords") == [{"Value": f'"{VALOR_A}"'}], rrset)
+
+# O lego trata qualquer 2xx como sucesso; repetir nao pode falhar nem
+# duplicar o valor.
+r = acme("present", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+checar("present repetido -> 200", r["statusCode"] == 200, r)
+checar("present repetido nao duplicou",
+       len(ESTADO["zona"][CHAVE_ACME]["ResourceRecords"]) == 1,
+       ESTADO["zona"][CHAVE_ACME])
+
+# --- apex + curinga no mesmo certificado: dois valores no mesmo nome ---
+
+acme("present", NOME_ACME, VALOR_B, admin="senha-do-instrutor")
+valores = [v["Value"] for v in ESTADO["zona"][CHAVE_ACME]["ResourceRecords"]]
+checar("present somou o segundo valor em vez de sobrescrever",
+       sorted(valores) == sorted([f'"{VALOR_A}"', f'"{VALOR_B}"']), valores)
+
+# O caso que o cleanup errado quebra: apagar o RRset inteiro derrubaria
+# o desafio do outro nome, ainda em voo.
+r = acme("cleanup", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+checar("cleanup -> 200", r["statusCode"] == 200, r)
+restantes = [v["Value"] for v in ESTADO["zona"][CHAVE_ACME]["ResourceRecords"]]
+checar("cleanup removeu so o proprio valor", restantes == [f'"{VALOR_B}"'], restantes)
+
+# --- cleanup do ultimo valor e idempotencia ---
+
+r = acme("cleanup", NOME_ACME, VALOR_B, admin="senha-do-instrutor")
+checar("cleanup do ultimo -> 200", r["statusCode"] == 200, r)
+checar("registro saiu da zona quando esvaziou",
+       CHAVE_ACME not in ESTADO["zona"], ESTADO["zona"])
+
+# O cleanup tambem roda depois de uma emissao que falhou no meio, com o
+# valor que nunca chegou a ser criado.
+r = acme("cleanup", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+checar("cleanup de valor inexistente -> 200", r["statusCode"] == 200, r)
+
+# Pela URL de invoke o path chega como "/prod/acme/present". Esquecer a
+# normalizacao do stage ja derrubou a edicao do React-Admin uma vez; a
+# emissao do certificado nao deve descobrir isso de novo.
+r = chamar("POST", "/prod/acme/present", {"fqdn": NOME_ACME, "value": VALOR_A},
+           admin="senha-do-instrutor")
+checar("present pela URL de invoke (/prod/...) -> 200", r["statusCode"] == 200, r)
+acme("cleanup", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+
+# A rota nao tem como pedir outro tipo -- o TXT e fixo no codigo. Este
+# caso trava a regressao de alguem parametrizar o tipo pelo corpo.
+tipos = {chave[1] for chave in ESTADO["zona"] if chave[0].startswith("_acme-")}
+checar("a rota nunca escreveu tipo diferente de TXT",
+       tipos <= {"TXT"}, tipos)
 
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")

@@ -71,6 +71,42 @@ ALIAS_VALIDO = re.compile(r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$')
 # tras por deploys antigos.
 ALIAS_RESERVADOS = re.compile(r'^(api|www\d*|https\d*)$')
 
+# ============================================================
+# DESAFIO DNS-01 DO ACME
+#
+# O certificado da turma e emitido por DNS-01, o que exige criar um TXT
+# em _acme-challenge.<nome> durante a validacao e apaga-lo depois. Quem
+# emite rodava o lego com --dns route53 e precisava de credencial da
+# conta da turma -- que no AWS Academy e de sessao e expira em horas,
+# no meio da emissao. Esta Lambda nao tem esse problema: ela ja e dona
+# da zona e roda com a LabRole, que nao expira.
+#
+# O lego chama /acme/present e /acme/cleanup pelo provider "exec", por
+# meio de um script de cola que manda os mesmos headers de qualquer
+# cliente da API. Foi essa a razao de escolher exec em vez do provider
+# httpreq nativo: o httpreq so emite basic auth, nao consegue mandar
+# x-admin-key, e a rota teria de furar o portao da senha da turma
+# ANTES do roteamento -- uma excecao privilegiada no unico arquivo
+# onde todo o resto passa pelo portao.
+#
+# O prefixo e fixo e a zona e conferida porque, sem isso, a rota vira
+# escrita livre no Route 53: daria para forjar a validacao ACME de
+# qualquer nome da zona e emitir certificado em nome dela.
+# ============================================================
+
+PREFIXO_ACME = '_acme-challenge.'
+
+# O valor do desafio e um SHA-256 em base64url, 43 caracteres. Limitar
+# ao alfabeto do base64url nao e so sanidade: o TXT vai para o Route 53
+# entre aspas duplas, e uma aspa ou barra invertida no valor quebraria
+# a codificacao do registro.
+VALOR_ACME = re.compile(r'^[A-Za-z0-9_-]{1,255}$')
+
+# Curto de proposito, e nao TTL_DNS: o registro vive por segundos e um
+# TTL alto faria um resolvedor guardar a ausencia dele na renovacao
+# seguinte. Fixo aqui para nao mudar junto com o TTL dos registros A.
+TTL_ACME = 60
+
 
 def _resposta(status, corpo, headers_extra=None):
     headers = dict(COMMON_HEADERS)
@@ -244,14 +280,21 @@ def _nomes_registro(alias):
     return [base, f'*.{base}']
 
 
-def _mudanca(acao, nome, endereco_ip):
+def _mudanca(acao, nome, valores, tipo='A', ttl=None):
+    """Um item de ChangeBatch.
+
+    Era fixo em A com um valor unico. Generalizado para o TXT do ACME,
+    que precisa de outro tipo e, no caso de apex + curinga no mesmo
+    certificado, de VARIOS valores no mesmo nome -- os dois validam em
+    _acme-challenge.<zona> ao mesmo tempo.
+    """
     return {
         'Action': acao,
         'ResourceRecordSet': {
             'Name': nome,
-            'Type': 'A',
-            'TTL': TTL_DNS,
-            'ResourceRecords': [{'Value': endereco_ip}]
+            'Type': tipo,
+            'TTL': TTL_DNS if ttl is None else ttl,
+            'ResourceRecords': [{'Value': v} for v in valores]
         }
     }
 
@@ -266,7 +309,7 @@ def _enviar_ao_route53(mudancas):
 def _aplicar_no_route53(acao, alias, endereco_ip):
     """Aplica a acao aos dois nomes, num lote so (atomico)."""
     _enviar_ao_route53([
-        _mudanca(acao, nome, endereco_ip)
+        _mudanca(acao, nome, [endereco_ip])
         for nome in _nomes_registro(alias)
     ])
 
@@ -288,11 +331,70 @@ def _remover_do_route53(alias, endereco_ip):
 
     for nome in _nomes_registro(alias):
         try:
-            _enviar_ao_route53([_mudanca('DELETE', nome, endereco_ip)])
+            _enviar_ao_route53([_mudanca('DELETE', nome, [endereco_ip])])
         except ClientError as e:
             if e.response['Error']['Code'] != 'InvalidChangeBatch':
                 raise
             print(f"_remover_do_route53: {nome} ja nao existia")
+
+
+# ============================================================
+# TXT DO ACME: validacao e leitura do conjunto existente
+# ============================================================
+
+def _validar_desafio_acme(dados):
+    """Devolve (nome, valor_entre_aspas, mensagem_de_erro).
+
+    O lego manda o fqdn com ponto final ("_acme-challenge.x.y.z."); o
+    Route 53 aceita com ou sem, mas a comparacao com o que ja existe na
+    zona precisa de uma forma unica, entao normalizamos sem o ponto.
+    """
+    fqdn = dados.get('fqdn')
+    valor = dados.get('value')
+
+    if not isinstance(fqdn, str) or not isinstance(valor, str):
+        return None, None, 'Os campos fqdn e value sao obrigatorios'
+
+    nome = fqdn.strip().lower().rstrip('.')
+    valor = valor.strip()
+
+    if not nome.startswith(PREFIXO_ACME):
+        return None, None, f"O fqdn precisa comecar com '{PREFIXO_ACME}'"
+
+    # Compara com o ponto na frente: sem ele, "_acme-challenge.x" mais
+    # um dominio terminando no nome da zona (zonadoutro.lab...) tambem
+    # casaria.
+    if not nome.endswith('.' + DOMINIO):
+        return None, None, f'O fqdn precisa estar dentro da zona {DOMINIO}'
+
+    if not VALOR_ACME.match(valor):
+        return None, None, 'O value precisa ser base64url (letras, numeros, - e _)'
+
+    return nome, f'"{valor}"', None
+
+
+def _txt_existentes(nome):
+    """Devolve (valores_entre_aspas, ttl) do TXT nesse nome exato.
+
+    ([], None) quando nao existe. A leitura e o que permite somar e
+    subtrair um valor em vez de sobrescrever o conjunto: com apex e
+    curinga no mesmo certificado, os dois desafios convivem no mesmo
+    nome, e um UPSERT de valor unico apagaria o que ainda esta em voo.
+    """
+    resposta = route53.list_resource_record_sets(
+        HostedZoneId=ZONA_ID,
+        StartRecordName=nome,
+        StartRecordType='TXT',
+        MaxItems='1'
+    )
+
+    for rrset in resposta.get('ResourceRecordSets', []):
+        mesmo_nome = (rrset.get('Name') or '').rstrip('.').lower() == nome
+        if mesmo_nome and rrset.get('Type') == 'TXT':
+            valores = [r['Value'] for r in rrset.get('ResourceRecords', [])]
+            return valores, rrset.get('TTL')
+
+    return [], None
 
 
 def lambda_handler(event, context):
@@ -321,6 +423,23 @@ def lambda_handler(event, context):
 
         if path == '/info' and metodo == 'GET':
             return obter_info()
+
+        # Rota propria, e nao um caso dentro de /registros: la a posse e
+        # do aluno, provada pelo token em ~/.fiap_dns_token, e o TXT do
+        # ACME nao tem dono aluno nenhum -- e o instrutor agindo sobre a
+        # zona inteira. Pendurar no /registros obrigaria a abrir excecao
+        # no _dono_confere e no _validar_entrada, que validam alias de
+        # registro A.
+        if partes and partes[0] == 'acme':
+            if not _eh_admin(headers):
+                return _erro(403, 'Esta rota exige a senha de instrutor (x-admin-key)')
+
+            corpo = json.loads(event.get('body') or '{}')
+
+            if metodo == 'POST' and partes[1:] == ['present']:
+                return acme_present(corpo)
+            if metodo == 'POST' and partes[1:] == ['cleanup']:
+                return acme_cleanup(corpo)
 
         if partes and partes[0] == 'registros':
             subdominio = partes[1] if len(partes) > 1 else None
@@ -477,6 +596,66 @@ def deletar_registro(subdominio, token=None, admin=False):
     print(f"deletar_registro: {_nome_registro(subdominio)} (+ wildcard)")
 
     return _resposta(200, {'id': subdominio})
+
+
+def acme_present(dados):
+    """Cria o TXT do desafio, somando ao que ja existir no nome."""
+    nome, valor, erro = _validar_desafio_acme(dados)
+    if erro:
+        return _erro(400, erro)
+
+    valores, _ttl = _txt_existentes(nome)
+
+    # Idempotente: o lego trata qualquer 2xx como sucesso, e repetir o
+    # present com o mesmo valor nao deve falhar nem duplicar.
+    if valor in valores:
+        print(f"acme_present: {nome} ja tinha este valor")
+        return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
+
+    valores.append(valor)
+    _enviar_ao_route53([
+        _mudanca('UPSERT', nome, valores, tipo='TXT', ttl=TTL_ACME)
+    ])
+
+    return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
+
+
+def acme_cleanup(dados):
+    """Remove APENAS o proprio valor do TXT do desafio.
+
+    Apagar o RRset inteiro derrubaria o desafio de outro nome que ainda
+    esteja em voo -- e a emissao falharia no segundo nome, nao no
+    primeiro, que e bem mais confuso de diagnosticar. O registro so sai
+    da zona quando o conjunto esvazia.
+    """
+    nome, valor, erro = _validar_desafio_acme(dados)
+    if erro:
+        return _erro(400, erro)
+
+    valores, ttl = _txt_existentes(nome)
+
+    # Idempotente: o cleanup roda tambem depois de uma emissao que
+    # falhou no meio, quando o valor pode nem ter sido criado.
+    if valor not in valores:
+        print(f"acme_cleanup: {nome} ja nao tinha este valor")
+        return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
+
+    restantes = [v for v in valores if v != valor]
+
+    if restantes:
+        _enviar_ao_route53([
+            _mudanca('UPSERT', nome, restantes, tipo='TXT', ttl=TTL_ACME)
+        ])
+    else:
+        # O DELETE exige o RRset exatamente como esta na zona, TTL
+        # incluido -- por isso o TTL vem da leitura, e nao de TTL_ACME:
+        # um registro deixado por outra ferramenta pode ter outro.
+        _enviar_ao_route53([
+            _mudanca('DELETE', nome, valores, tipo='TXT',
+                     ttl=ttl if ttl is not None else TTL_ACME)
+        ])
+
+    return _resposta(200, {'fqdn': nome, 'valores': len(restantes)})
 
 
 def obter_info():
