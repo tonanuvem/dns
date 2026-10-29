@@ -5,7 +5,11 @@ resource "aws_apigatewayv2_api" "api" {
   cors_configuration {
     allow_origins  = ["*"]
     allow_methods  = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allow_headers  = ["Content-Type", "Authorization", "Range", "X-Api-Key"]
+    # X-Admin-Key e o modo instrutor. O preflight e respondido aqui
+    # pelo proprio API Gateway, antes da Lambda: um cabecalho de fora
+    # desta lista derruba a requisicao no navegador como erro de rede,
+    # sem log nenhum do lado do servidor.
+    allow_headers  = ["Content-Type", "Authorization", "Range", "X-Api-Key", "X-Admin-Key"]
     expose_headers = ["Content-Range"]
     max_age        = 300
   }

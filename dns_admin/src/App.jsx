@@ -38,11 +38,15 @@ import {
   TextField as MuiTextField,
   Typography,
   Link,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import SchoolIcon from '@mui/icons-material/School';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 // ============================================================
 // CONFIGURACAO
@@ -133,6 +137,9 @@ const BotaoInstrutor = () => {
   const [aberto, setAberto] = useState(false);
   const [senha, setSenha] = useState('');
   const [ativo, setAtivo] = useState(Boolean(lerSenhaAdmin()));
+  // A senha vem de um terminal e costuma ser colada; sem poder conferir
+  // o que entrou, um caractere a mais vira 403 sem explicacao.
+  const [visivel, setVisivel] = useState(false);
   const notify = useNotify();
 
   const salvar = () => {
@@ -182,18 +189,32 @@ const BotaoInstrutor = () => {
             apagá-los.
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Não é a senha da turma. Para consultá-la:
-            <code> grep senha_admin terraform/terraform.tfvars</code>
+            Não é a senha da turma. Para consultá-la, na pasta do projeto:
+            <code> cd terraform &amp;&amp; terraform output -raw senha_admin</code>
           </Typography>
           <MuiTextField
             autoFocus
             fullWidth
-            type="password"
+            type={visivel ? 'text' : 'password'}
             margin="normal"
             label="Senha de instrutor"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && salvar()}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    size="small"
+                    aria-label={visivel ? 'Ocultar senha' : 'Mostrar senha'}
+                    onClick={() => setVisivel((v) => !v)}
+                  >
+                    {visivel ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
         </DialogContent>
         <DialogActions>

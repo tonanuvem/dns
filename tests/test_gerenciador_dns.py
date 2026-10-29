@@ -332,6 +332,14 @@ chamar("POST", "/registros", {"alias": "outro", "endereco_ip": "3.3.3.3", "token
 r = chamar("DELETE", "/registros/outro", admin="aluno")
 checar("senha da turma NAO vale como admin -> 403", r["statusCode"] == 403, r)
 
+# O navegador so manda x-admin-key se o preflight a liberar. Faltando
+# aqui (ou no cors_configuration do API Gateway), o modo instrutor
+# morre como "NetworkError", sem chegar a Lambda.
+permitidos = [h.strip().lower()
+              for h in g.COMMON_HEADERS["Access-Control-Allow-Headers"].split(",")]
+checar("CORS permite x-admin-key", "x-admin-key" in permitidos, permitidos)
+checar("CORS permite x-api-key", "x-api-key" in permitidos, permitidos)
+
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")
 sys.exit(1 if FALHAS else 0)

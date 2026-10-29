@@ -51,7 +51,7 @@ except Exception as e:
 COMMON_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,X-API-Key,Authorization,Range",
+    "Access-Control-Allow-Headers": "Content-Type,X-API-Key,X-Admin-Key,Authorization,Range",
     "Access-Control-Expose-Headers": "Content-Range",
     "Access-Control-Max-Age": "600",
     "Content-Type": "application/json"
