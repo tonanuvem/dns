@@ -159,6 +159,10 @@ module "apigw_s3_proxy" {
   # numero: nunca colide com wwwNN, e continua conhecido em tempo de
   # plan, que e o que o for_each do cert_validation exige.
   proxy_domain  = "https.${var.nome_aluno}.${var.nome_dominio}"
+
+  # Qualquer nome ainda nao registrado cai aqui em vez de devolver
+  # NXDOMAIN. Ver o bloco do curinga no modulo.
+  proxy_wildcard_domain = "*.${var.nome_aluno}.${var.nome_dominio}"
   proxy_zone_id = data.aws_route53_zone.selecionada.zone_id
   proxy_tags    = var.tags
 }

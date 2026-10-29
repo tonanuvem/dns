@@ -7,7 +7,19 @@ resource "aws_acm_certificate" "cert" {
   provider          = aws.regional
   domain_name       = var.proxy_domain
   validation_method = "DNS"
-  tags              = var.proxy_tags
+
+  # O curinga da zona entra como SAN no mesmo certificado -- um segundo
+  # certificado so para ele seria desperdicio, e a ACM valida os dois
+  # nomes no mesmo pedido.
+  subject_alternative_names = [var.proxy_wildcard_domain]
+
+  # Trocar os nomes recria o certificado, e o dominio personalizado que
+  # o referencia precisa nascer antes do antigo morrer.
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = var.proxy_tags
 }
 
 resource "aws_route53_record" "cert_validation" {
@@ -155,6 +167,53 @@ resource "aws_route53_record" "api_dns" {
   alias {
     name                   = aws_api_gateway_domain_name.custom_domain.regional_domain_name
     zone_id                = aws_api_gateway_domain_name.custom_domain.regional_zone_id
+    evaluate_target_health = false
+  }
+}
+
+# ============================================================
+# CURINGA DA ZONA -- o fim do cache negativo
+#
+# Sem ele, consultar um nome ainda nao registrado devolve NXDOMAIN, e
+# resolvedores guardam a resposta negativa por min(minimum do SOA, TTL
+# do SOA) -- 15 minutos com os valores padrao do Route 53. O aluno
+# testa o nome para ver se esta livre, registra, e continua quebrado
+# por 15 minutos sem entender por que.
+#
+# Com o curinga nao existe mais resposta negativa nesta zona: todo nome
+# resolve e serve o proprio site do gerenciador. Troca-se um negativo
+# de 15 minutos por um positivo de 60 segundos.
+#
+# Registro explicito sempre vence curinga (RFC 4592), entao api.<zona>,
+# https.<zona> e os nomes dos alunos continuam intactos -- o curinga so
+# responde pelo que nao existe.
+# ============================================================
+
+resource "aws_api_gateway_domain_name" "wildcard_domain" {
+  depends_on = [aws_acm_certificate_validation.cert]
+
+  domain_name              = var.proxy_wildcard_domain
+  regional_certificate_arn = aws_acm_certificate.cert.arn
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+}
+
+resource "aws_api_gateway_base_path_mapping" "wildcard_mapping" {
+  domain_name = aws_api_gateway_domain_name.wildcard_domain.domain_name
+  api_id      = aws_api_gateway_rest_api.s3_proxy.id
+  stage_name  = aws_api_gateway_stage.s3_stage.stage_name
+}
+
+resource "aws_route53_record" "wildcard_dns" {
+  zone_id = var.proxy_zone_id
+  name    = var.proxy_wildcard_domain
+  type    = "A"
+
+  alias {
+    name                   = aws_api_gateway_domain_name.wildcard_domain.regional_domain_name
+    zone_id                = aws_api_gateway_domain_name.wildcard_domain.regional_zone_id
     evaluate_target_health = false
   }
 }

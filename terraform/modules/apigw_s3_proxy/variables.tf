@@ -18,3 +18,7 @@ variable "proxy_tags" {
   default     = {}
   description = "Tags aplicadas a recursos do módulo"
 }
+variable "proxy_wildcard_domain" {
+  description = "Curinga da zona (*.<turma>.<dominio>), para que nenhum nome devolva NXDOMAIN"
+  type        = string
+}

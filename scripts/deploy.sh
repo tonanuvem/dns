@@ -141,6 +141,13 @@ print_message "Aplicando mudanças..." "$YELLOW"
 terraform apply tfplan
 check_status "Mudanças aplicadas com sucesso" "Erro ao aplicar mudanças"
 
+# O curinga da zona, criado no apply acima, ja impede o NXDOMAIN nos
+# nomes dos alunos. O SOA cobre a consulta a propria zona.
+ZONA_ID=$(grep -E '^id_zona_hospedada' terraform.tfvars 2>/dev/null | cut -d'"' -f2)
+if [ -n "$ZONA_ID" ]; then
+    "$BASE_DIR/scripts/ajustar_soa.sh" "$ZONA_ID" 60
+fi
+
 # ============================================================
 # RESULTADO
 #
