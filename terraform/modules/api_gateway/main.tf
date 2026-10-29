@@ -89,6 +89,11 @@ resource "aws_route53_record" "cert_validation" {
   type    = each.value.type
   ttl     = 60
   records = [each.value.record]
+
+  # Mesma razao do modulo apigw_s3_proxy: a ACM reaproveita o token de
+  # validacao, entao um certificado recriado pede um CNAME que ja
+  # existe. Aqui e preventivo -- hoje nada recria este certificado.
+  allow_overwrite = true
 }
 
 # Domínio personalizado da API

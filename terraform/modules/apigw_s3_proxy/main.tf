@@ -36,6 +36,13 @@ resource "aws_route53_record" "cert_validation" {
   type    = each.value.type
   ttl     = 60
   records = [each.value.record]
+
+  # A ACM reaproveita o mesmo token de validacao para o mesmo dominio
+  # na mesma conta. Com create_before_destroy no certificado, o novo
+  # pede um CNAME identico ao que o antigo ainda mantem, e o Route 53
+  # recusa com "but it already exists". Sobrescrever e o comportamento
+  # correto aqui: o conteudo do registro e o mesmo.
+  allow_overwrite = true
 }
 
 resource "aws_acm_certificate_validation" "cert" {
