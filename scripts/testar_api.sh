@@ -1,86 +1,71 @@
 #!/bin/bash
 
 # =======================================================
-# Script para testar os endpoints da API
+# Testa os endpoints da API de ponta a ponta.
 #
-# - Este script executa testes automatizados para os verbos GET, POST e DELETE.
-# - Ele cria um subdomínio único a cada execução para evitar conflitos.
-# - O JSON de teste é embutido no próprio script para maior praticidade.
+# A versao anterior tinha a URL "https:/api.lab.aluno..." -- uma barra
+# a menos e os rotulos trocados (a zona e <turma>.<dominio>), a chave
+# fixa na string "SENHA" e o corpo com o campo "subdominio", que a API
+# nunca aceitou (ela le "alias"). Nada disso chegava a funcionar.
+#
+# Agora os valores saem do state, que e a fonte da verdade do deploy.
 # =======================================================
 
-# --- Variáveis de Configuração ---
-# Substitua 'SENHA' pela sua chave de API, se for diferente.
-API_KEY="SENHA"
-# URL base da sua API Gateway.
-API_URL="https:/api.lab.aluno.tonanuvem.com"
-# URLs completas para os endpoints.
-REGISTROS_URL="$API_URL/registros"
-INFO_URL="$API_URL/info"
-# Cria um subdomínio único usando a data e hora atuais.
-# Isso evita que o teste falhe se você rodar o script várias vezes.
-#SUBDOMINIO="teste-api-$(date +%s)"
+set -u
 
-SUBDOMINIO="INSERIRseuNOME"
-ENDERECO_IP=$(curl checkip.amazonaws.com)
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$BASE_DIR/terraform" || exit 1
 
-# --- JSON para o teste de POST ---
-# O 'heredoc' (<<EOF) permite definir um bloco de texto JSON no próprio script.
-# A variável "$SUBDOMINIO" é expandida para o valor único que criamos acima.
-read -r -d '' JSON_DATA <<EOF
-{
-  "subdominio": "$SUBDOMINIO",
-  "endereco_ip": "$ENDERECO_IP"
+API_URL="${API_URL:-$(terraform output -raw api_url 2>/dev/null)}"
+API_KEY="${API_KEY:-$(grep -E '^senha_compartilhada' terraform.tfvars 2>/dev/null | cut -d'"' -f2)}"
+
+if [ -z "$API_URL" ] || [ -z "$API_KEY" ]; then
+    echo "Nao consegui ler a URL ou a senha do Terraform."
+    echo "Rode ./scripts/deploy.sh antes, ou exporte API_URL e API_KEY."
+    exit 1
+fi
+
+# Um alias por execucao: a zona e compartilhada pela turma e um nome
+# fixo colidiria com o registro de alguem.
+ALIAS="teste-$(date +%s)"
+IP="203.0.113.10"   # TEST-NET-3 (RFC 5737): nao e de ninguem.
+# Com token, o registro nasce com dono -- e so o teste consegue apagar
+# o que o teste criou.
+TOKEN="teste-$(date +%s)-$RANDOM"
+
+# O token de posse vai no header x-dns-token (o corpo tambem serve, mas
+# o DELETE nao tem corpo). Passe "-t" como primeiro argumento para
+# incluir o token na chamada.
+chamar() {
+    local cabecalhos=(-H "X-API-Key: $API_KEY")
+    if [ "$1" = "-t" ]; then
+        cabecalhos+=(-H "X-DNS-Token: $TOKEN")
+        shift
+    fi
+    local metodo="$1" caminho="$2" corpo="${3:-}"
+    echo ""
+    echo "=> $metodo $caminho"
+    if [ -n "$corpo" ]; then
+        cabecalhos+=(-H "Content-Type: application/json" -d "$corpo")
+    fi
+    curl -s -w '\n[HTTP %{http_code}]\n' -X "$metodo" \
+        "${cabecalhos[@]}" "$API_URL$caminho"
 }
-EOF
 
 echo "========================================"
-echo "Iniciando testes da API..."
-echo "Subdomínio de teste: $SUBDOMINIO"
+echo " API   : $API_URL"
+echo " Alias : $ALIAS"
 echo "========================================"
-echo ""
 
-# --- Teste GET /info ---
-# Comando curl:
-# -s: Modo silencioso, suprime a barra de progresso.
-# -i: Inclui os headers da resposta na saída.
-# -H: Adiciona o header 'X-API-Key' para autenticação.
-echo "=> Testando GET /info..."
-curl -s -i -H "X-API-Key: $API_KEY" "$INFO_URL"
-
-echo ""
-echo "----------------------------------------"
-echo ""
-
-# --- Teste GET /registros ---
-echo "=> Testando GET /registros..."
-curl -s -i -H "X-API-Key: $API_KEY" "$REGISTROS_URL"
-
-echo ""
-echo "----------------------------------------"
-echo ""
-
-# --- Teste POST /registros ---
-# Comando curl:
-# -X POST: Define o método HTTP como POST.
-# -H "Content-Type: application/json": Informa que o corpo da requisição é JSON.
-# -d "$JSON_DATA": Envia o conteúdo da nossa variável 'JSON_DATA' no corpo da requisição.
-echo "=> Testando POST /registros..."
-echo "JSON a ser enviado: "
-echo "$JSON_DATA"
-curl -s -i -X POST -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" -d "$JSON_DATA" "$REGISTROS_URL"
-
-echo ""
-echo "----------------------------------------"
-echo ""
-
-# # --- Teste DELETE /registros/{subdominio} ---
-# # Comando curl:
-# # -X DELETE: Define o método HTTP como DELETE.
-# # A URL utiliza a variável 'SUBDOMINIO' para deletar o registro que acabamos de criar.
-echo "=> Testando DELETE /registros/$SUBDOMINIO..."
-curl -s -i -X DELETE -H "X-API-Key: $API_KEY" "$REGISTROS_URL/$SUBDOMINIO"
+chamar GET /registros
+chamar POST /registros "{\"alias\":\"$ALIAS\",\"endereco_ip\":\"$IP\",\"token\":\"$TOKEN\"}"
+chamar -t PUT "/registros/$ALIAS" "{\"endereco_ip\":\"203.0.113.11\"}"
+# Sem o token este DELETE devolve 403: e a prova de que a posse funciona.
+chamar DELETE "/registros/$ALIAS"
+chamar -t DELETE "/registros/$ALIAS"
 
 echo ""
 echo "========================================"
-echo "Testes concluídos!"
+echo "Testes concluidos. O penultimo DELETE deve ter dado 403,"
+echo "e o ultimo 200 -- e assim que a posse do registro aparece."
 echo "========================================"

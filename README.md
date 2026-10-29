@@ -66,20 +66,24 @@ Este script irá:
 
 ```
 .
-├── config.sh              # Script de configuração inicial
+├── config.sh             # Configuração inicial (gera o terraform.tfvars)
 ├── lambda/               # Código da função Lambda
-├── dns_admin/            # Código do frontend
-├── scripts/             # Scripts auxiliares
-│   └── deploy.sh
-└── terraform/           # Código Terraform
+├── tests/                # Testes da Lambda (rodam sem AWS)
+├── dns_admin/            # Frontend React-Admin
+├── scripts/              # Scripts auxiliares
+│   ├── deploy.sh             # Cria/atualiza todo o ambiente
+│   ├── limpar_ambiente.sh    # Remove o que sobrou de um apply interrompido
+│   ├── testar_api.sh         # Exercita a API de ponta a ponta
+│   └── mostrar_delegacao.sh  # Imprime os NS para delegar na zona pai
+└── terraform/            # Código Terraform
     ├── main.tf
     ├── variables.tf
     ├── outputs.tf
     └── modules/
-        ├── lambda_api/
-        ├── api_gateway/
-        ├── frontend/
-        └── dns/
+        ├── lambda_api/       # Lambda + DynamoDB
+        ├── api_gateway/      # HTTP API da aplicação
+        ├── frontend/         # Bucket do site + build
+        └── apigw_s3_proxy/   # Mesmo site com TLS
 ```
 
 ## Troubleshooting
@@ -90,8 +94,6 @@ Este script irá:
 - Verifique se a zona DNS do aluno existe
 
 ### Erro ao executar deploy.sh
-- Verifique se o arquivo ZIP da função Lambda existe
-- Verifique se o build do frontend existe
 - Verifique se as credenciais AWS são válidas
 - Verifique se o arquivo terraform.tfvars está configurado corretamente 
 - Verifique se o diretório lambda existe
