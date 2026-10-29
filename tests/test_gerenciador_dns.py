@@ -48,21 +48,57 @@ class FakeR53:
         ESTADO["r53"].extend(lote)
         ESTADO["lotes"].append(lote)
 
+        # Um escritor concorrente, injetado por um teste. Roda ENTRE a
+        # leitura feita pelo codigo e esta escrita -- exatamente a janela
+        # em que um UPSERT da uniao perderia um valor sem erro nenhum.
+        intruso = ESTADO.pop("intruso", None)
+        if intruso:
+            intruso()
+
         # O TXT do ACME e lido de volta antes de cada escrita (para somar
         # e subtrair um valor em vez de sobrescrever), entao o fake tem
         # de guardar a zona, e nao so o historico de chamadas.
+        #
+        # Para TXT ele tambem imita as recusas do Route 53: um DELETE que
+        # nao casa com o RRset exato (valores e TTL) ou um CREATE em nome
+        # ocupado derrubam o lote INTEIRO. E disso que depende o
+        # compare-and-swap do codigo -- um fake permissivo faria o teste
+        # de concorrencia passar por engano. Para os registros A o
+        # comportamento segue leniente, que e contra o que os casos
+        # anteriores a esta rota foram escritos.
+        pendente = dict(ESTADO["zona"])
+
         for c in ChangeBatch["Changes"]:
             rr = c["ResourceRecordSet"]
             chave = (rr["Name"].rstrip(".").lower(), rr["Type"])
+            atual = pendente.get(chave)
+            estrito = rr["Type"] == "TXT"
+            novo = {
+                "Name": rr["Name"],
+                "Type": rr["Type"],
+                "TTL": rr["TTL"],
+                "ResourceRecords": [dict(v) for v in rr["ResourceRecords"]],
+            }
+
             if c["Action"] == "DELETE":
-                ESTADO["zona"].pop(chave, None)
+                if estrito:
+                    iguais = atual is not None and atual["TTL"] == rr["TTL"] and (
+                        sorted(v["Value"] for v in atual["ResourceRecords"])
+                        == sorted(v["Value"] for v in rr["ResourceRecords"])
+                    )
+                    if not iguais:
+                        raise ClientError(
+                            {"Error": {"Code": "InvalidChangeBatch"}}, "change")
+                pendente.pop(chave, None)
+            elif c["Action"] == "CREATE":
+                if estrito and atual is not None:
+                    raise ClientError(
+                        {"Error": {"Code": "InvalidChangeBatch"}}, "change")
+                pendente[chave] = novo
             else:
-                ESTADO["zona"][chave] = {
-                    "Name": rr["Name"],
-                    "Type": rr["Type"],
-                    "TTL": rr["TTL"],
-                    "ResourceRecords": [dict(v) for v in rr["ResourceRecords"]],
-                }
+                pendente[chave] = novo
+
+        ESTADO["zona"] = pendente
         return {}
 
     def list_resource_record_sets(self, HostedZoneId, StartRecordName,
@@ -471,6 +507,54 @@ checar("registro saiu da zona quando esvaziou",
 # valor que nunca chegou a ser criado.
 r = acme("cleanup", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
 checar("cleanup de valor inexistente -> 200", r["statusCode"] == 200, r)
+
+# --- escrita concorrente, que e o buraco que o UPSERT teria ---
+#
+# UPSERT substitui o RRset inteiro: montar a uniao a partir de uma
+# leitura perderia um valor em silencio se outro escritor mexesse no
+# nome entre a leitura e a escrita. O codigo usa
+# [DELETE antigo, CREATE novo], que o Route 53 aplica atomicamente e
+# recusa inteiro se o antigo nao casar. Estes dois casos sao os unicos
+# que provam isso -- nenhum deles apareceria numa emissao com um SAN so.
+
+VALOR_C = "ccccccccccccccccccccccccccccccccccccccccccc"
+
+ESTADO["zona"].clear()
+acme("present", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+
+
+def intruso_uma_vez():
+    """Acrescenta um valor na janela entre a leitura e a escrita."""
+    ESTADO["zona"][CHAVE_ACME]["ResourceRecords"].append({"Value": f'"{VALOR_C}"'})
+
+
+ESTADO["intruso"] = intruso_uma_vez
+r = acme("present", NOME_ACME, VALOR_B, admin="senha-do-instrutor")
+checar("present com escrita concorrente -> 200", r["statusCode"] == 200, r)
+valores = sorted(v["Value"] for v in ESTADO["zona"][CHAVE_ACME]["ResourceRecords"])
+checar("concorrencia nao perdeu nenhum valor",
+       valores == sorted([f'"{VALOR_A}"', f'"{VALOR_B}"', f'"{VALOR_C}"']), valores)
+
+# Concorrencia que nao cede: tem de falhar ALTO, com 500, em vez de
+# devolver 200 tendo apagado o valor de outro.
+ESTADO["zona"].clear()
+acme("present", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
+
+
+def intruso_sempre():
+    ESTADO["intruso"] = intruso_sempre
+    ESTADO["zona"][CHAVE_ACME]["TTL"] += 1
+
+
+ESTADO["intruso"] = intruso_sempre
+r = acme("present", NOME_ACME, VALOR_B, admin="senha-do-instrutor")
+ESTADO.pop("intruso", None)
+checar("concorrencia persistente -> 500 (e nao 200 silencioso)",
+       r["statusCode"] == 500, r)
+valores = [v["Value"] for v in ESTADO["zona"][CHAVE_ACME]["ResourceRecords"]]
+checar("o valor do outro sobreviveu a falha", valores == [f'"{VALOR_A}"'], valores)
+
+ESTADO["zona"].clear()
 
 # Pela URL de invoke o path chega como "/prod/acme/present". Esquecer a
 # normalizacao do stage ja derrubou a edicao do React-Admin uma vez; a

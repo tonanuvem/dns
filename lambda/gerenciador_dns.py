@@ -397,6 +397,59 @@ def _txt_existentes(nome):
     return [], None
 
 
+def _trocar_txt(nome, antigos, ttl_antigo, novos):
+    """Troca o conjunto de valores detectando escrita concorrente.
+
+    O caminho obvio seria UPSERT, mas o UPSERT substitui o RRset
+    INTEIRO: montar a uniao a partir de uma leitura perde um valor em
+    silencio se outro escritor mexer no nome entre a leitura e a
+    escrita -- e sem erro nenhum, o que e o pior jeito de falhar.
+
+    Um ChangeBatch e atomico, e o DELETE exige o RRset exatamente como
+    esta na zona (valores e TTL). Entao [DELETE antigo, CREATE novo] e
+    um compare-and-swap: se alguem escreveu no meio, o DELETE nao casa,
+    o lote inteiro e recusado e nada se perde. O CREATE sozinho cobre o
+    outro lado -- ele falha se o registro apareceu entretanto.
+    """
+    mudancas = []
+
+    if antigos:
+        mudancas.append(_mudanca(
+            'DELETE', nome, antigos, tipo='TXT',
+            ttl=ttl_antigo if ttl_antigo is not None else TTL_ACME
+        ))
+
+    if novos:
+        mudancas.append(_mudanca('CREATE', nome, novos, tipo='TXT', ttl=TTL_ACME))
+
+    if mudancas:
+        _enviar_ao_route53(mudancas)
+
+
+def _atualizar_txt(nome, transformar, tentativas=3):
+    """Le, transforma e grava, repetindo se a zona mudou no meio.
+
+    transformar(valores) devolve a nova lista, ou None quando nao ha
+    nada a fazer -- e o caso idempotente.
+    """
+    for tentativa in range(tentativas):
+        atuais, ttl = _txt_existentes(nome)
+        novos = transformar(atuais)
+
+        if novos is None:
+            return atuais, False
+
+        try:
+            _trocar_txt(nome, atuais, ttl, novos)
+            return novos, True
+        except ClientError as e:
+            if e.response['Error']['Code'] != 'InvalidChangeBatch':
+                raise
+            if tentativa == tentativas - 1:
+                raise
+            print(f"_atualizar_txt: {nome} mudou no meio, relendo")
+
+
 def lambda_handler(event, context):
     metodo = event.get('httpMethod', '')
     path = _normalizar_path(event)
@@ -604,18 +657,15 @@ def acme_present(dados):
     if erro:
         return _erro(400, erro)
 
-    valores, _ttl = _txt_existentes(nome)
-
     # Idempotente: o lego trata qualquer 2xx como sucesso, e repetir o
     # present com o mesmo valor nao deve falhar nem duplicar.
-    if valor in valores:
-        print(f"acme_present: {nome} ja tinha este valor")
-        return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
+    def somar(atuais):
+        return None if valor in atuais else atuais + [valor]
 
-    valores.append(valor)
-    _enviar_ao_route53([
-        _mudanca('UPSERT', nome, valores, tipo='TXT', ttl=TTL_ACME)
-    ])
+    valores, mudou = _atualizar_txt(nome, somar)
+
+    if not mudou:
+        print(f"acme_present: {nome} ja tinha este valor")
 
     return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
 
@@ -632,28 +682,17 @@ def acme_cleanup(dados):
     if erro:
         return _erro(400, erro)
 
-    valores, ttl = _txt_existentes(nome)
-
     # Idempotente: o cleanup roda tambem depois de uma emissao que
     # falhou no meio, quando o valor pode nem ter sido criado.
-    if valor not in valores:
+    def subtrair(atuais):
+        if valor not in atuais:
+            return None
+        return [v for v in atuais if v != valor]
+
+    restantes, mudou = _atualizar_txt(nome, subtrair)
+
+    if not mudou:
         print(f"acme_cleanup: {nome} ja nao tinha este valor")
-        return _resposta(200, {'fqdn': nome, 'valores': len(valores)})
-
-    restantes = [v for v in valores if v != valor]
-
-    if restantes:
-        _enviar_ao_route53([
-            _mudanca('UPSERT', nome, restantes, tipo='TXT', ttl=TTL_ACME)
-        ])
-    else:
-        # O DELETE exige o RRset exatamente como esta na zona, TTL
-        # incluido -- por isso o TTL vem da leitura, e nao de TTL_ACME:
-        # um registro deixado por outra ferramenta pode ter outro.
-        _enviar_ao_route53([
-            _mudanca('DELETE', nome, valores, tipo='TXT',
-                     ttl=ttl if ttl is not None else TTL_ACME)
-        ])
 
     return _resposta(200, {'fqdn': nome, 'valores': len(restantes)})
 
