@@ -34,3 +34,10 @@ variable "zona_id" {
   description = "ID da zona DNS"
   type        = string
 }
+
+variable "senha_admin" {
+  description = "Senha de instrutor para sobrepor a posse de um alias"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

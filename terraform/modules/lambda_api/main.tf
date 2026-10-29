@@ -52,6 +52,8 @@ resource "aws_lambda_function" "gerenciador_dns" {
       TTL_DNS = var.ttl_dns
       # Era NAMESERVERS, mas o valor sempre foi o dominio da zona.
       DOMINIO = var.nome_dominio
+      # So existe aqui: nao vai para o bundle do frontend.
+      SENHA_ADMIN = var.senha_admin
       ZONA_ID = var.zona_id
     }
   }

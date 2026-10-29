@@ -44,3 +44,13 @@ variable "account_id" {
   description = "ID da conta AWS"
   type        = string
 }
+# Senha do instrutor, para editar ou apagar pela interface um registro
+# criado por aluno. Precisa ser DIFERENTE de senha_compartilhada: aquela
+# e a senha da turma, vai no bundle publico do frontend e embutida no
+# dns.sh. Vazia desliga o override.
+variable "senha_admin" {
+  description = "Senha de instrutor (NUNCA entra no bundle do frontend)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

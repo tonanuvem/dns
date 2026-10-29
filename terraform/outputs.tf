@@ -36,3 +36,9 @@ output "zona_dns" {
   description = "Zona hospedada onde os alunos criam os aliases"
   value       = "${var.nome_aluno}.${var.nome_dominio} (${var.id_zona_hospedada})"
 }
+
+output "senha_admin" {
+  description = "Senha de instrutor. Leia com: terraform output -raw senha_admin"
+  value       = local.senha_admin
+  sensitive   = true
+}

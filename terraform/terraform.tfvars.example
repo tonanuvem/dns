@@ -31,6 +31,16 @@ tags = {
   Gerenciado = "terraform"
 }
 
+# Senha de INSTRUTOR, para editar ou apagar pela interface um registro
+# criado por aluno. Diferente da senha_compartilhada de proposito:
+# aquela e da turma e e publica (bundle do frontend, dns.sh); esta
+# nunca sai da configuracao da Lambda.
+#
+# Vazia (o padrao) = o Terraform gera e guarda no state. Leia com:
+#     terraform output -raw senha_admin
+# Preencha so se quiser uma senha escolhida a mao.
+senha_admin = "${SENHA_ADMIN}"
+
 # Preenchidos automaticamente pelo config.sh
 id_zona_hospedada = ""
 account_id        = ""

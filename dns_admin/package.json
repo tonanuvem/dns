@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mui/icons-material": "^6.1.0",
+    "@mui/material": "^6.1.0",
     "ra-data-simple-rest": "^5.10.1",
     "react": "^19.1.1",
     "react-admin": "^5.10.1",

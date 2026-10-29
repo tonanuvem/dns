@@ -158,6 +158,13 @@ echo "  Site (HTTPS): $(terraform output -raw frontend_url_https 2>/dev/null)"
 echo "  API         : $(terraform output -raw api_url 2>/dev/null)"
 echo "  Zona DNS    : $(terraform output -raw zona_dns 2>/dev/null)"
 echo ""
+# Sensivel, entao nao sai no bloco de outputs do apply -- e preciso
+# pedir explicitamente.
+echo "  Senha de instrutor (para mexer em registro de aluno pela"
+echo "  interface; NÃO é a senha da turma):"
+echo ""
+echo "      $(terraform output -raw senha_admin 2>/dev/null)"
+echo ""
 echo "  O certificado do API Gateway pode levar alguns minutos para"
 echo "  propagar. Se o site responder 403 logo apos o deploy, aguarde"
 echo "  e recarregue."

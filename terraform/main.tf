@@ -40,6 +40,32 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# ============================================================
+# SENHA DE INSTRUTOR
+#
+# Gerada aqui, e nao pelo config.sh, para ter uma fonte unica: o
+# random_password vive no state (S3), entao sobrevive a perda da VM e
+# e estavel entre applies. Antes ela nascia no config.sh e so existia
+# no terraform.tfvars de uma VM -- perdida a VM, perdida a senha.
+#
+# var.senha_admin sobrescreve, para quando voce quiser uma senha
+# escolhida a mao.
+#
+# Fica no state em texto claro -- mas isso ja valia para a senha da
+# turma e para as variaveis de ambiente da Lambda, que tambem estao
+# la. O bucket do state e privado.
+# ============================================================
+
+resource "random_password" "admin" {
+  length  = 12
+  special = false
+  upper   = false
+}
+
+locals {
+  senha_admin = var.senha_admin != "" ? var.senha_admin : "instrutor-${random_password.admin.result}"
+}
+
 # Data source para obter a zona hospedada
 data "aws_route53_zone" "selecionada" {
   zone_id = var.id_zona_hospedada
@@ -58,6 +84,7 @@ module "lambda_api" {
   lambda_nome_aluno = var.nome_aluno
   lambda_dynamodb_table_name = "registros-dns-${var.nome_aluno}"
   senha_compartilhada = var.senha_compartilhada
+  senha_admin = local.senha_admin
   ttl_dns = var.ttl_dns
   nome_dominio = "${var.nome_aluno}.${var.nome_dominio}"
   zona_id = var.id_zona_hospedada

@@ -78,6 +78,11 @@ export NOME_ALUNO="$NOME_ALUNO"
 export SENHA_COMPARTILHADA="$SENHA_COMPARTILHADA"
 export NOME_DOMINIO="$NOME_DOMINIO"
 
+# A senha de instrutor e gerada pelo Terraform (random_password) e vive
+# no state, nao aqui. Vazia no tfvars significa "deixa o Terraform
+# escolher"; preencha apenas se quiser uma senha especifica.
+export SENHA_ADMIN=""
+
 # Criar terraform.tfvars a partir do exemplo, substituindo as variáveis de ambiente
 envsubst < terraform/terraform.tfvars.example > terraform/terraform.tfvars
 
@@ -206,6 +211,11 @@ echo -e "\nConfiguração concluída com sucesso!"
 echo ""
 echo "Zona da turma : $ZONA_DNS"
 echo "Zona hospedada: $ZONE_ID"
+echo ""
+echo "A senha de instrutor (para editar/apagar registro de aluno na"
+echo "interface) é gerada pelo Terraform. Após o deploy, leia com:"
+echo ""
+echo "    cd terraform && terraform output -raw senha_admin"
 echo ""
 echo "Próximo passo:"
 echo "- Execute ./scripts/deploy.sh para fazer o deploy da infraestrutura"

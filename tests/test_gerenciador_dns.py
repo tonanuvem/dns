@@ -81,7 +81,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import gerenciador_dns as g  # noqa: E402
 
 
-def chamar(metodo, path, corpo=None, stage="prod", senha="aluno", token_header=None):
+def chamar(metodo, path, corpo=None, stage="prod", senha="aluno",
+           token_header=None, admin=None):
     evento = {
         "httpMethod": metodo,
         "path": path,
@@ -90,6 +91,8 @@ def chamar(metodo, path, corpo=None, stage="prod", senha="aluno", token_header=N
     }
     if token_header is not None:
         evento["headers"]["x-dns-token"] = token_header
+    if admin is not None:
+        evento["headers"]["x-admin-key"] = admin
     if corpo is not None:
         evento["body"] = json.dumps(corpo)
     return g.lambda_handler(evento, None)
@@ -288,6 +291,46 @@ r = chamar("PUT", "/registros/semdono", {"endereco_ip": "5.5.5.5"})
 checar("PUT em registro sem dono -> 200", r["statusCode"] == 200, r)
 r = chamar("DELETE", "/registros/semdono")
 checar("DELETE em registro sem dono -> 200", r["statusCode"] == 200, r)
+
+# ============================================================
+# tem_dono e SENHA DE INSTRUTOR
+# ============================================================
+
+ESTADO["itens"].clear()
+
+chamar("POST", "/registros", {"alias": "comdono", "endereco_ip": "1.1.1.1", "token": "t"})
+chamar("POST", "/registros", {"alias": "semdono2", "endereco_ip": "2.2.2.2"})
+
+itens = {i["alias"]: i for i in json.loads(chamar("GET", "/registros")["body"])}
+checar("tem_dono=True no registro do aluno", itens["comdono"]["tem_dono"] is True, itens["comdono"])
+checar("tem_dono=False no criado pela interface", itens["semdono2"]["tem_dono"] is False, itens["semdono2"])
+checar("nome_completo preenchido",
+       itens["comdono"]["nome_completo"] == "comdono.aluno.lab.tonanuvem.com", itens["comdono"])
+
+# Sem SENHA_ADMIN configurada, o header nao vale nada.
+g.SENHA_ADMIN = ""
+r = chamar("DELETE", "/registros/comdono", admin="qualquer")
+checar("SENHA_ADMIN vazia -> header ignorado (403)", r["statusCode"] == 403, r)
+
+g.SENHA_ADMIN = "senha-do-instrutor"
+
+r = chamar("DELETE", "/registros/comdono", admin="errada")
+checar("senha de instrutor errada -> 403", r["statusCode"] == 403, r)
+
+r = chamar("PUT", "/registros/comdono", {"endereco_ip": "9.9.9.9"}, admin="senha-do-instrutor")
+checar("PUT como instrutor -> 200", r["statusCode"] == 200, r)
+checar("dono preservado apos edicao do instrutor",
+       "token_hash" in ESTADO["itens"]["comdono"], ESTADO["itens"]["comdono"])
+
+r = chamar("DELETE", "/registros/comdono", admin="senha-do-instrutor")
+checar("DELETE como instrutor -> 200", r["statusCode"] == 200, r)
+checar("registro do aluno removido", "comdono" not in ESTADO["itens"])
+
+# A senha da TURMA nao pode servir de senha de instrutor: todo aluno a
+# tem (bundle do frontend, dns.sh). Este caso trava essa regressao.
+chamar("POST", "/registros", {"alias": "outro", "endereco_ip": "3.3.3.3", "token": "t2"})
+r = chamar("DELETE", "/registros/outro", admin="aluno")
+checar("senha da turma NAO vale como admin -> 403", r["statusCode"] == 403, r)
 
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")

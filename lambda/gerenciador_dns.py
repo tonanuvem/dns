@@ -33,6 +33,15 @@ try:
     # nameservers. O nome antigo continua aceito para nao quebrar uma
     # funcao que ainda nao foi reimplantada.
     DOMINIO = os.environ.get('DOMINIO') or os.environ['NAMESERVERS']
+
+    # Senha do instrutor, para mexer em registro de aluno pela interface.
+    #
+    # Precisa ser DIFERENTE da SENHA_API: aquela e a senha da turma, vai
+    # no bundle publico do frontend e embutida no dns.sh, entao todo
+    # aluno a conhece -- usa-la aqui tornaria todos administradores.
+    # Esta nunca sai da configuracao da Lambda; o instrutor a digita na
+    # tela. Vazia (o padrao) desliga o override.
+    SENHA_ADMIN = os.environ.get('SENHA_ADMIN', '')
 except Exception as e:
     print(f"ERRO na inicializacao: {e}")
     raise
@@ -126,15 +135,38 @@ def _publico(item):
     Remove o token_hash: a listagem devolve os itens inteiros, e sem
     isto o hash de todo mundo ficaria exposto a qualquer aluno com a
     senha da turma -- material para um ataque de dicionario offline.
-    Acrescenta o "id" que o React-Admin exige.
+
+    No lugar dele vai "tem_dono", um booleano. E o que permite a
+    interface mostrar quais registros ela nao pode editar, em vez de
+    oferecer um botao que falha com 403.
+
+    Acrescenta tambem o "id" que o React-Admin exige e o FQDN, para a
+    tela nao precisar remontar o nome.
     """
     publico = {k: v for k, v in item.items() if k != 'token_hash'}
     publico['id'] = item['alias']
+    publico['tem_dono'] = bool(item.get('token_hash'))
+    publico['nome_completo'] = _nome_registro(item['alias'])
     return publico
 
 
-def _dono_confere(item, token):
-    """True quando o registro nao tem dono ou o token bate."""
+def _eh_admin(headers):
+    """True quando o header x-admin-key traz a senha do instrutor."""
+    if not SENHA_ADMIN:
+        return False
+
+    for k, v in (headers or {}).items():
+        if k.lower() == 'x-admin-key' and v:
+            return hmac.compare_digest(v, SENHA_ADMIN)
+
+    return False
+
+
+def _dono_confere(item, token, admin=False):
+    """True quando o registro nao tem dono, o token bate, ou e o admin."""
+    if admin:
+        return True
+
     esperado = item.get('token_hash')
 
     if not esperado:
@@ -294,6 +326,7 @@ def lambda_handler(event, context):
             subdominio = partes[1] if len(partes) > 1 else None
             corpo = json.loads(event.get('body') or '{}')
             token = _extrair_token(headers, corpo)
+            admin = _eh_admin(headers)
 
             if metodo == 'GET' and subdominio is None:
                 return listar_registros()
@@ -302,9 +335,9 @@ def lambda_handler(event, context):
             if metodo == 'POST' and subdominio is None:
                 return criar_registro(corpo, token)
             if metodo == 'PUT' and subdominio:
-                return atualizar_registro(subdominio, corpo, token)
+                return atualizar_registro(subdominio, corpo, token, admin)
             if metodo == 'DELETE' and subdominio:
-                return deletar_registro(subdominio, token)
+                return deletar_registro(subdominio, token, admin)
 
         return _erro(404, 'Rota nao encontrada')
 
@@ -376,7 +409,7 @@ def criar_registro(dados, token=None):
     return _resposta(201, _publico(item))
 
 
-def atualizar_registro(subdominio, dados, token=None):
+def atualizar_registro(subdominio, dados, token=None, admin=False):
     """Troca o IP de um alias existente.
 
     A tela de edicao do React-Admin envia PUT /registros/{id}; sem esta
@@ -389,8 +422,9 @@ def atualizar_registro(subdominio, dados, token=None):
     if not item_atual:
         return _erro(404, 'Registro nao encontrado')
 
-    if not _dono_confere(item_atual, token):
-        return _erro(403, f"O alias '{subdominio}' pertence a outra pessoa")
+    if not _dono_confere(item_atual, token, admin):
+        return _erro(403, f"O alias '{subdominio}' pertence a um aluno. "
+                         "Use o token dele ou a senha de instrutor.")
 
     alias, erro = _validar_entrada(subdominio, dados.get('endereco_ip'))
     if erro:
@@ -423,14 +457,15 @@ def atualizar_registro(subdominio, dados, token=None):
     return _resposta(200, _publico(item))
 
 
-def deletar_registro(subdominio, token=None):
+def deletar_registro(subdominio, token=None, admin=False):
     item = table.get_item(Key={'alias': subdominio}).get('Item')
 
     if not item:
         return _erro(404, 'Registro nao encontrado')
 
-    if not _dono_confere(item, token):
-        return _erro(403, f"O alias '{subdominio}' pertence a outra pessoa")
+    if not _dono_confere(item, token, admin):
+        return _erro(403, f"O alias '{subdominio}' pertence a um aluno. "
+                         "Use o token dele ou a senha de instrutor.")
 
     # Tolera o registro ja ter sido apagado no console do Route 53.
     # Antes isso virava 500 e o item ficava preso no DynamoDB, sem jeito
