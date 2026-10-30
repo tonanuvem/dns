@@ -712,6 +712,42 @@ checar("GET devolve a chave no campo 'key'",
 checar("GET devolve emitido_em e expira_em",
        bool(corpo_cert["emitido_em"]) and bool(corpo_cert["expira_em"]), corpo_cert)
 
+# --- ambiente: staging ou producao ---
+#
+# Sem este campo a guarda de cota do emitir_certificado.sh so olhava a
+# validade, e um certificado de STAGING tem os mesmos 90 dias do de
+# verdade: ela nunca trocaria um pelo outro, e a turma rodaria dois meses
+# com o navegador recusando, exibindo o mesmo cadeado quebrado do
+# autoassinado. Sintoma que nao muda e sintoma que ninguem investiga.
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM, "ambiente": "staging"},
+         admin="senha-do-instrutor")
+checar("PUT com ambiente=staging -> 200", r["statusCode"] == 200, r)
+checar("o PUT devolve o ambiente",
+       json.loads(r["body"])["ambiente"] == "staging", r["body"])
+r = cert("GET", token_header="tok-aluno")
+checar("o GET devolve o ambiente",
+       json.loads(r["body"])["ambiente"] == "staging", json.loads(r["body"]).keys())
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM, "ambiente": "PRODUCAO"},
+         admin="senha-do-instrutor")
+checar("ambiente aceita maiusculas e normaliza",
+       json.loads(r["body"])["ambiente"] == "producao", r["body"])
+
+# Valor estranho nao e erro -- o campo simplesmente nao e guardado, e a
+# guarda trata "ausente" como ambiente desconhecido, que e o lado seguro.
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM, "ambiente": "sei-la"},
+         admin="senha-do-instrutor")
+checar("ambiente invalido -> 200 e campo vazio",
+       r["statusCode"] == 200 and json.loads(r["body"])["ambiente"] == "", r["body"])
+
+# Volta ao estado que os casos seguintes esperam.
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM,
+                 "expira_em": "2027-01-02T00:00:00"},
+         admin="senha-do-instrutor")
+IMPRESSAO = json.loads(r["body"])["impressao"]
+
+
 # --- 304: o proxy.sh roda a cada subida de VM ---
 
 r = cert("GET", token_header="tok-aluno", params={"impressao": IMPRESSAO})

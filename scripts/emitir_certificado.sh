@@ -107,11 +107,14 @@ fi
 # A GUARDA
 # ------------------------------------------------------------
 
-dias_restantes() {
+# Imprime "<dias> <ambiente>", ou uma palavra de diagnostico no lugar dos
+# dias. O ambiente sai vazio quando o certificado guardado e anterior a
+# este campo existir.
+estado_guardado() {
     local item
     item=$(aws dynamodb get-item --table-name "$TABELA" \
         --key '{"turma":{"S":"atual"}}' \
-        --projection-expression 'expira_em' \
+        --projection-expression 'expira_em,ambiente' \
         --output json 2>/dev/null) || { echo "sem-tabela"; return; }
 
     printf '%s' "$item" | python3 -I -c '
@@ -122,21 +125,24 @@ try:
 except Exception:
     print("sem-item"); raise SystemExit
 item = d.get("Item") or {}
+ambiente = (item.get("ambiente") or {}).get("S", "")
 bruto = (item.get("expira_em") or {}).get("S", "")
 if not bruto:
-    print("sem-validade" if item else "sem-item"); raise SystemExit
+    print("sem-validade" if item else "sem-item", ambiente); raise SystemExit
 try:
     alvo = datetime.fromisoformat(bruto.replace("Z", "+00:00"))
 except ValueError:
-    print("validade-ilegivel"); raise SystemExit
+    print("validade-ilegivel", ambiente); raise SystemExit
 if alvo.tzinfo is None:
     alvo = alvo.replace(tzinfo=timezone.utc)
-print(int((alvo - datetime.now(timezone.utc)).total_seconds() // 86400))
+print(int((alvo - datetime.now(timezone.utc)).total_seconds() // 86400), ambiente)
 '
 }
 
 if [ "$FORCAR" = "0" ]; then
-    DIAS=$(dias_restantes)
+    read -r DIAS AMBIENTE <<< "$(estado_guardado)"
+    AMBIENTE="${AMBIENTE:-}"
+
     case "$DIAS" in
         sem-tabela)
             desistir "tabela $TABELA nao existe. Rode o deploy.sh para cria-la." ;;
@@ -146,12 +152,23 @@ if [ "$FORCAR" = "0" ]; then
             desistir "ha certificado guardado, mas sem validade legivel ($DIAS).
        Nao vou emitir as cegas e gastar cota. Use --forcar se for o caso." ;;
         *)
-            if [ "$DIAS" -gt "$DIAS_MINIMOS" ]; then
-                ok "certificado guardado vence em $DIAS dias (minimo $DIAS_MINIMOS): nada a fazer"
+            # Um certificado de STAGING tem os mesmos 90 dias de validade
+            # que o de verdade, entao olhar so a data nunca trocaria um
+            # pelo outro -- e a turma rodaria dois meses com o navegador
+            # recusando, exibindo o mesmo cadeado quebrado do
+            # autoassinado. Sintoma que nao muda e sintoma que ninguem
+            # investiga. Por isso pedir producao sobre algo que nao e
+            # producao emite, independente da data.
+            if [ "$PRODUCAO" = "1" ] && [ "$AMBIENTE" != "producao" ]; then
+                aviso "guardado e ${AMBIENTE:-de ambiente desconhecido} e vence em $DIAS dias:"
+                aviso "vou emitir em producao para substitui-lo"
+            elif [ "$DIAS" -gt "$DIAS_MINIMOS" ]; then
+                ok "certificado guardado (${AMBIENTE:-ambiente desconhecido}) vence em $DIAS dias (minimo $DIAS_MINIMOS): nada a fazer"
                 echo ""
                 exit 0
-            fi
-            aviso "certificado guardado vence em $DIAS dias: vou renovar" ;;
+            else
+                aviso "certificado guardado vence em $DIAS dias: vou renovar"
+            fi ;;
     esac
 fi
 
@@ -163,9 +180,11 @@ command -v docker >/dev/null || desistir "docker nao encontrado; nao da para rod
 
 if [ "$PRODUCAO" = "1" ]; then
     SERVIDOR="https://acme-v02.api.letsencrypt.org/directory"
+    AMBIENTE_NOVO="producao"
     aviso "emitindo de ${N}VERDADE${F}: 5 por conjunto identico de nomes a cada 7 dias."
 else
     SERVIDOR="https://acme-staging-v02.api.letsencrypt.org/directory"
+    AMBIENTE_NOVO="staging"
     ok "usando o ${N}staging${F} (nao confiavel no navegador; valida o fluxo)"
 fi
 
@@ -250,11 +269,12 @@ fi
 
 # O corpo e montado por python, e nao por interpolacao de shell: o PEM tem
 # quebras de linha, que precisam ir escapadas no JSON.
-CORPO=$(CERT="$CERT" CHAVE="$CHAVE" ISO="$ISO" python3 -I -c '
+CORPO=$(CERT="$CERT" CHAVE="$CHAVE" ISO="$ISO" AMB="$AMBIENTE_NOVO" python3 -I -c '
 import json, os
 corpo = {
     "cert": open(os.environ["CERT"]).read(),
     "key":  open(os.environ["CHAVE"]).read(),
+    "ambiente": os.environ["AMB"],
 }
 if os.environ.get("ISO"):
     corpo["expira_em"] = os.environ["ISO"]

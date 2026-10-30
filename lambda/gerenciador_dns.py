@@ -617,6 +617,21 @@ def guardar_certificado(dados):
     if isinstance(expira_em, str) and expira_em.strip():
         item['expira_em'] = expira_em.strip()
 
+    # "staging" ou "producao". Sem isto a guarda de cota do
+    # emitir_certificado.sh so olhava expira_em, e um certificado de
+    # STAGING recem-emitido tem 90 dias de validade igual ao de verdade
+    # -- entao ela nao trocaria um pelo outro, e a turma poderia rodar
+    # dois meses num certificado em que o navegador nao confia, com o
+    # sintoma (cadeado quebrado) identico ao estado anterior, que era o
+    # autoassinado. Ninguem investiga um sintoma que nao mudou.
+    #
+    # Explicito, e nao inferido do emissor do certificado: casar string
+    # no nome da CA ("(STAGING) ...") seria adivinhar uma convencao que
+    # nao e nossa.
+    ambiente = dados.get('ambiente')
+    if isinstance(ambiente, str) and ambiente.strip().lower() in ('staging', 'producao'):
+        item['ambiente'] = ambiente.strip().lower()
+
     tabela_cert.put_item(Item=item)
 
     print(f"guardar_certificado: impressao {impressao}")
@@ -624,7 +639,8 @@ def guardar_certificado(dados):
     return _resposta(200, {
         'impressao': impressao,
         'emitido_em': item['emitido_em'],
-        'expira_em': item.get('expira_em', '')
+        'expira_em': item.get('expira_em', ''),
+        'ambiente': item.get('ambiente', '')
     })
 
 
@@ -658,7 +674,10 @@ def obter_certificado(token, params):
         'key': item.get('chave', ''),
         'emitido_em': item.get('emitido_em', ''),
         'expira_em': item.get('expira_em', ''),
-        'impressao': impressao
+        'impressao': impressao,
+        # O painel do labproxy pode destacar "staging" para quem pulou a
+        # guarda com --forcar: fecha o buraco tambem pelo lado visivel.
+        'ambiente': item.get('ambiente', '')
     })
 
 
