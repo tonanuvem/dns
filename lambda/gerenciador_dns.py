@@ -71,6 +71,10 @@ ALIAS_VALIDO = re.compile(r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$')
 # tras por deploys antigos.
 ALIAS_RESERVADOS = re.compile(r'^(api|www\d*|https\d*)$')
 
+# Os campos de um registro que podem sair na resposta. Ver _publico:
+# e uma allowlist de proposito, para um campo novo nao nascer publico.
+CAMPOS_PUBLICOS = ('alias', 'endereco_ip', 'data_criacao', 'data_atualizacao')
+
 # ============================================================
 # DESAFIO DNS-01 DO ACME
 #
@@ -168,18 +172,27 @@ def _extrair_token(headers, dados):
 def _publico(item):
     """Versao do item que pode sair na resposta.
 
-    Remove o token_hash: a listagem devolve os itens inteiros, e sem
-    isto o hash de todo mundo ficaria exposto a qualquer aluno com a
-    senha da turma -- material para um ataque de dicionario offline.
+    Lista o que SAI, em vez de remover o que nao pode sair. A versao
+    anterior fazia o contrario -- descartava o token_hash e deixava
+    passar todo o resto -- e isso quer dizer que qualquer campo novo em
+    qualquer item nascia publico. Hoje os itens so tem alias, ip e
+    datas, entao a resposta e exatamente a mesma; o que muda e o modo
+    de falhar. Quem guardar algo num item daqui em diante esquece de
+    exibir um campo, em vez de publicar um sem perceber.
 
-    No lugar dele vai "tem_dono", um booleano. E o que permite a
-    interface mostrar quais registros ela nao pode editar, em vez de
-    oferecer um botao que falha com 403.
+    Isso importa porque listar_registros() varre a tabela inteira atras
+    de um portao so: a x-api-key, que e a senha da turma e e publica.
 
-    Acrescenta tambem o "id" que o React-Admin exige e o FQDN, para a
-    tela nao precisar remontar o nome.
+    O token_hash fica de fora: sem isso o hash de todo mundo ficaria
+    exposto a qualquer aluno com a senha da turma -- material para um
+    ataque de dicionario offline. No lugar dele vai "tem_dono", um
+    booleano, que permite a interface mostrar quais registros ela nao
+    pode editar em vez de oferecer um botao que falha com 403.
+
+    O "id" e exigido pelo React-Admin, e o FQDN evita que a tela
+    precise remontar o nome.
     """
-    publico = {k: v for k, v in item.items() if k != 'token_hash'}
+    publico = {k: item[k] for k in CAMPOS_PUBLICOS if k in item}
     publico['id'] = item['alias']
     publico['tem_dono'] = bool(item.get('token_hash'))
     publico['nome_completo'] = _nome_registro(item['alias'])

@@ -410,6 +410,33 @@ checar("CORS permite x-admin-key", "x-admin-key" in permitidos, permitidos)
 checar("CORS permite x-api-key", "x-api-key" in permitidos, permitidos)
 
 # ============================================================
+# 8c. _publico e allowlist: campo novo num item NAO sai na resposta.
+#
+# listar_registros varre a tabela inteira atras de um portao so -- a
+# x-api-key, que e a senha da turma e e publica. Com a denylist
+# anterior, qualquer campo acrescentado a um item passava a ser servido
+# a turma inteira. Foi o que inviabilizou guardar o certificado nesta
+# tabela: a chave privada sairia por aqui, contornando o token de posse
+# que protege o GET /certificado.
+ESTADO["itens"]["vazamento"] = {
+    "alias": "vazamento",
+    "endereco_ip": "5.5.5.5",
+    "data_criacao": "2026-01-01T00:00:00",
+    "token_hash": "nao-deve-sair",
+    "chave_privada": "-----BEGIN PRIVATE KEY-----",
+}
+itens = {i["alias"]: i for i in json.loads(chamar("GET", "/registros")["body"])}
+checar("campo novo num item NAO sai na listagem",
+       "chave_privada" not in itens["vazamento"], itens["vazamento"])
+checar("token_hash continua fora da listagem",
+       "token_hash" not in itens["vazamento"], itens["vazamento"])
+checar("os campos esperados continuam saindo",
+       {"alias", "endereco_ip", "data_criacao", "id", "tem_dono", "nome_completo"}
+       <= set(itens["vazamento"]), itens["vazamento"])
+del ESTADO["itens"]["vazamento"]
+
+
+# ============================================================
 # 9. Desafio DNS-01 do ACME (/acme/present e /acme/cleanup)
 #
 # A rota escreve TXT direto na zona da turma. O que a torna segura sao
