@@ -743,6 +743,30 @@ r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM}, admin="senha-do-instrutor"
 checar("PUT sem tabela configurada -> 503", r["statusCode"] == 503, r)
 g.tabela_cert = _tabela_cert
 
+# --- o modulo IMPORTA sem DYNAMODB_TABLE_CERT? ---
+#
+# Os casos acima trocam g.tabela_cert DEPOIS do import, o que nao e a
+# mesma coisa: o risco real e alguem trocar o .get() por [] e a Lambda
+# parar de inicializar numa conta cujo Terraform ainda nao criou a
+# tabela -- derrubando /registros e o dns.sh de toda a turma junto, nao
+# so o /certificado. Este caso recarrega o modulo com a variavel
+# ausente e exige que ele suba.
+import importlib  # noqa: E402
+
+_cert_env = os.environ.pop("DYNAMODB_TABLE_CERT")
+try:
+    importlib.reload(g)
+    checar("modulo importa sem DYNAMODB_TABLE_CERT", True)
+    checar("e tabela_cert fica None", g.tabela_cert is None, g.tabela_cert)
+    r = chamar("GET", "/certificado", token_header="tok-aluno")
+    checar("import sem a variavel -> /certificado responde 503",
+           r["statusCode"] == 503, r)
+except Exception as e:
+    checar("modulo importa sem DYNAMODB_TABLE_CERT", False, repr(e))
+finally:
+    os.environ["DYNAMODB_TABLE_CERT"] = _cert_env
+    importlib.reload(g)
+
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")
 sys.exit(1 if FALHAS else 0)
