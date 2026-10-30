@@ -302,6 +302,31 @@ fi
 
 ok "guardado: $CORPO_RESP"
 
+# A API devolve o ambiente que gravou. Se nao vier o que mandamos, a Lambda
+# implantada e anterior a esse campo e o descartou em SILENCIO -- e ai a
+# guarda veria "ambiente desconhecido" na proxima execucao e emitiria de
+# novo, e de novo, queimando a cota de 5 por semana que ela existe para
+# proteger. Falha barulhenta aqui vale mais que um laco silencioso depois.
+AMBIENTE_GRAVADO=$(printf '%s' "$CORPO_RESP" | python3 -I -c '
+import json, sys
+try:
+    print(json.load(sys.stdin).get("ambiente", ""))
+except Exception:
+    print("")
+')
+
+if [ "$AMBIENTE_GRAVADO" != "$AMBIENTE_NOVO" ]; then
+    echo ""
+    aviso "${N}a API nao guardou o ambiente${F} (mandei '$AMBIENTE_NOVO', devolveu '${AMBIENTE_GRAVADO:-vazio}')."
+    aviso "A Lambda implantada e anterior a esse campo. O certificado FOI guardado,"
+    aviso "mas a guarda de cota vai achar que o ambiente e desconhecido e emitir de"
+    aviso "novo na proxima execucao -- em producao isso queima a cota da semana."
+    echo ""
+    aviso "Publique a Lambda e emita de novo, nesta ordem:"
+    aviso "    git pull && ./scripts/deploy.sh"
+    echo ""
+fi
+
 echo ""
 echo "  As VMs pegam sozinhas na proxima execucao do proxy.sh do labproxy."
 echo "  A chave privada ficou em $CHAVE (modo 600) -- nao precisa copia-la"
