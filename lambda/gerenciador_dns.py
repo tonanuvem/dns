@@ -551,6 +551,24 @@ def guardar_certificado(dados):
 
     # Identifica a versao sem precisar ler o certificado: o cliente
     # manda de volta e a gente responde 304 se nao mudou.
+    #
+    # O cliente deve GUARDAR este valor e devolve-lo verbatim, nunca
+    # recalcula-lo. Medido com a sessao do labproxy: o hash sai sobre o
+    # cert DEPOIS do strip, e um "sha256sum cert.pem" do arquivo em
+    # disco da outro valor, porque o arquivo tem \n no fim. Pior, o
+    # "jq -r" repoe exatamente o \n que o strip tirou -- entao o hash
+    # do cliente seria estavel, plausivel e sempre diferente, e o 304
+    # morreria em silencio: download inteiro a cada subida de VM, sem
+    # erro nenhum para denunciar.
+    #
+    # Byte-exato (hashear sem strip) nao resolve: o GET devolveria o \n
+    # final e o "jq -r" somaria outro. A unica definicao que nao depende
+    # de como o cliente escreve o arquivo e "guarde o que eu te dei".
+    #
+    # O strip fica de proposito: impede que um espaco perdido no fim do
+    # arquivo mude a identidade do certificado e force um download
+    # inutil. O que e guardado, o que e devolvido e o que e hasheado
+    # sao a mesma string -- e isso que faz o 304 ser confiavel.
     impressao = hashlib.sha256(cert.encode()).hexdigest()[:16]
 
     item = {
