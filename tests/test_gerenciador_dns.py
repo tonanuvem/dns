@@ -166,7 +166,7 @@ import gerenciador_dns as g  # noqa: E402
 
 
 def chamar(metodo, path, corpo=None, stage="prod", senha="aluno",
-           token_header=None, admin=None, params=None):
+           token_header=None, admin=None, params=None, b64=False):
     evento = {
         "httpMethod": metodo,
         "path": path,
@@ -181,6 +181,13 @@ def chamar(metodo, path, corpo=None, stage="prod", senha="aluno",
         evento["headers"]["x-admin-key"] = admin
     if corpo is not None:
         evento["body"] = json.dumps(corpo)
+        # Como o API Gateway entrega quando nao reconhece o Content-Type
+        # como texto -- o caso de quem manda JSON sem
+        # "Content-Type: application/json".
+        if b64:
+            import base64 as _b64
+            evento["body"] = _b64.b64encode(evento["body"].encode()).decode()
+            evento["isBase64Encoded"] = True
     return g.lambda_handler(evento, None)
 
 
@@ -742,6 +749,47 @@ checar("sem tabela configurada -> 503, e nao 500", r["statusCode"] == 503, r)
 r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM}, admin="senha-do-instrutor")
 checar("PUT sem tabela configurada -> 503", r["statusCode"] == 503, r)
 g.tabela_cert = _tabela_cert
+
+# ============================================================
+# 11. Corpo em base64 (isBase64Encoded)
+#
+# O API Gateway entrega o corpo em base64 quando nao reconhece o
+# Content-Type como texto -- o que acontece com quem manda JSON sem
+# "Content-Type: application/json". Medido contra a API de verdade em
+# 30/10, no primeiro teste de fumaca do /acme: o corpo chegava em base64
+# e o json.loads devolvia 400 "Corpo da requisicao nao e um JSON
+# valido", reclamando de um JSON que o cliente sabia estar correto.
+#
+# Nao e teorico aqui: o acme-dns.sh roda dentro do container do lego,
+# que e Alpine, e o wget do busybox manda x-www-form-urlencoded por
+# padrao.
+# ============================================================
+
+r = chamar("POST", "/registros",
+           {"alias": "viab64", "endereco_ip": "7.7.7.8", "token": "tb64"}, b64=True)
+checar("POST /registros com corpo em base64 -> 201", r["statusCode"] == 201, r)
+
+r = chamar("POST", "/acme/present",
+           {"fqdn": NOME_ACME, "value": VALOR_A}, admin="senha-do-instrutor", b64=True)
+checar("POST /acme/present com corpo em base64 -> 200", r["statusCode"] == 200, r)
+chamar("POST", "/acme/cleanup", {"fqdn": NOME_ACME, "value": VALOR_A},
+       admin="senha-do-instrutor")
+
+r = chamar("PUT", "/certificado", {"cert": CERT_PEM, "key": CHAVE_PEM},
+           admin="senha-do-instrutor", b64=True)
+checar("PUT /certificado com corpo em base64 -> 200", r["statusCode"] == 200, r)
+
+# base64 ilegivel ainda deve dar 400, nunca 500: o corpo segue como veio
+# e o json.loads adiante decide.
+evento_ruim = {
+    "httpMethod": "POST", "path": "/acme/present",
+    "headers": {"X-Api-Key": "aluno", "x-admin-key": "senha-do-instrutor"},
+    "requestContext": {"stage": "prod"},
+    "body": "!!!nao-e-base64!!!", "isBase64Encoded": True,
+}
+r = g.lambda_handler(evento_ruim, None)
+checar("base64 ilegivel -> 400, e nao 500", r["statusCode"] == 400, r)
+
 
 # --- o modulo IMPORTA sem DYNAMODB_TABLE_CERT? ---
 #

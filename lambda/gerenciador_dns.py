@@ -8,6 +8,7 @@ O frontend e o React-Admin, entao a listagem devolve o header
 Content-Range e cada item carrega um campo "id".
 """
 
+import base64
 import hashlib
 import ipaddress
 import json
@@ -234,6 +235,37 @@ def _dono_confere(item, token, admin=False):
         return False
 
     return hmac.compare_digest(_hash_token(token), esperado)
+
+
+def _corpo_json(event):
+    """O corpo da requisicao, decodificando quando vem em base64.
+
+    O API Gateway entrega o corpo em base64 e marca isBase64Encoded
+    quando nao reconhece o Content-Type como texto. Quem manda JSON sem
+    "Content-Type: application/json" cai nisso -- e o corpo chegava aqui
+    como base64, que o json.loads recusava com "Corpo da requisicao nao
+    e um JSON valido". Confusao garantida: o cliente ve 400 reclamando
+    de um JSON que ele sabe estar correto.
+
+    Observado contra a API de verdade em 30/10, no primeiro teste de
+    fumaca do /acme. Nao e teorico para este projeto: o acme-dns.sh roda
+    dentro do container do lego, que e Alpine, e o wget do busybox manda
+    x-www-form-urlencoded por padrao.
+
+    Mandar o Content-Type certo continua sendo o certo do lado do
+    cliente. Isto aqui e para o erro dele nao virar um 400 enigmatico.
+    """
+    corpo = event.get('body') or ''
+
+    if corpo and event.get('isBase64Encoded'):
+        try:
+            corpo = base64.b64decode(corpo).decode('utf-8')
+        except Exception:
+            # Deixa passar como veio: o json.loads adiante devolve o 400,
+            # que e a resposta certa para um corpo que nao da para ler.
+            pass
+
+    return corpo or '{}'
 
 
 def _normalizar_path(event):
@@ -667,7 +699,7 @@ def lambda_handler(event, context):
             if not _eh_admin(headers):
                 return _erro(403, 'Esta rota exige a senha de instrutor (x-admin-key)')
 
-            corpo = json.loads(event.get('body') or '{}')
+            corpo = json.loads(_corpo_json(event))
 
             if metodo == 'POST' and partes[1:] == ['present']:
                 return acme_present(corpo)
@@ -675,7 +707,7 @@ def lambda_handler(event, context):
                 return acme_cleanup(corpo)
 
         if partes == ['certificado']:
-            corpo = json.loads(event.get('body') or '{}')
+            corpo = json.loads(_corpo_json(event))
             params = event.get('queryStringParameters') or {}
 
             # Excecao contida AQUI, e nao no except geral: aquele loga
@@ -697,7 +729,7 @@ def lambda_handler(event, context):
 
         if partes and partes[0] == 'registros':
             subdominio = partes[1] if len(partes) > 1 else None
-            corpo = json.loads(event.get('body') or '{}')
+            corpo = json.loads(_corpo_json(event))
             token = _extrair_token(headers, corpo)
             admin = _eh_admin(headers)
 
