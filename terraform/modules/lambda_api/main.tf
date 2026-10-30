@@ -16,6 +16,38 @@ resource "aws_dynamodb_table" "registros_dns" {
   })
 }
 
+# ============================================================
+# TABELA DO CERTIFICADO DA TURMA
+#
+# Tabela PROPRIA, e nao um item na de registros, por um motivo medido:
+# listar_registros() varre a tabela de registros inteira atras de um
+# portao so -- a x-api-key, que e a senha da turma e e publica. Um item
+# de certificado ali sairia inteiro em GET /registros, chave privada
+# incluida, contornando o token de posse que protege o GET
+# /certificado.
+#
+# A alternativa seria filtrar o scan, mas isso e uma lista de exclusao
+# que alguem precisa lembrar de manter, e o modo de falhar dela e vazar
+# chave privada. Separar custa este bloco, uma vez.
+#
+# Um item por turma: cert + chave dao ~4 KB, bem dentro do limite de
+# 400 KB por item. Sem bucket e sem credencial AWS na VM do aluno.
+# ============================================================
+resource "aws_dynamodb_table" "certificado_turma" {
+  name         = "certificado-turma-${var.lambda_nome_aluno}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "turma"
+
+  attribute {
+    name = "turma"
+    type = "S"
+  }
+
+  tags = merge(var.lambda_tags, {
+    Name = "certificado-turma"
+  })
+}
+
 # Arquivo ZIP da função Lambda
 data "archive_file" "lambda_zip" {
   type        = "zip"
@@ -48,6 +80,7 @@ resource "aws_lambda_function" "gerenciador_dns" {
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.registros_dns.name
+      DYNAMODB_TABLE_CERT = aws_dynamodb_table.certificado_turma.name
       SENHA_API = var.senha_compartilhada
       TTL_DNS = var.ttl_dns
       # Era NAMESERVERS, mas o valor sempre foi o dominio da zona.

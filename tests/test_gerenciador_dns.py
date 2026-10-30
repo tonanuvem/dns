@@ -16,7 +16,7 @@ import sys
 import types
 
 # --- boto3 falso, instalado antes do import do modulo ---
-ESTADO = {"itens": {}, "r53": [], "lotes": [], "zona": {}}
+ESTADO = {"itens": {}, "r53": [], "lotes": [], "zona": {}, "cert": {}}
 
 
 class FakeTable:
@@ -34,8 +34,22 @@ class FakeTable:
         ESTADO["itens"].pop(Key["alias"], None)
 
 
+# O certificado mora em tabela PROPRIA, e o fake respeita isso: se as
+# duas compartilhassem o dicionario de estado, o teste que afirma que o
+# certificado nao sai em GET /registros passaria por engano.
+class FakeCertTable:
+    def put_item(self, Item):
+        ESTADO["cert"][Item["turma"]] = dict(Item)
+
+    def get_item(self, Key):
+        item = ESTADO["cert"].get(Key["turma"])
+        return {"Item": dict(item)} if item else {}
+
+
 class FakeDynamo:
     def Table(self, nome):
+        if nome.startswith("certificado-turma"):
+            return FakeCertTable()
         return FakeTable()
 
 
@@ -144,6 +158,7 @@ os.environ.update({
     "TTL_DNS": "60",
     "ZONA_ID": "Z09807023UJAU2NOXGU3L",
     "NAMESERVERS": "aluno.lab.tonanuvem.com",
+    "DYNAMODB_TABLE_CERT": "certificado-turma-aluno",
 })
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lambda"))
@@ -151,13 +166,15 @@ import gerenciador_dns as g  # noqa: E402
 
 
 def chamar(metodo, path, corpo=None, stage="prod", senha="aluno",
-           token_header=None, admin=None):
+           token_header=None, admin=None, params=None):
     evento = {
         "httpMethod": metodo,
         "path": path,
         "headers": {"X-Api-Key": senha},
         "requestContext": {"stage": stage},
     }
+    if params is not None:
+        evento["queryStringParameters"] = params
     if token_header is not None:
         evento["headers"]["x-dns-token"] = token_header
     if admin is not None:
@@ -596,6 +613,135 @@ acme("cleanup", NOME_ACME, VALOR_A, admin="senha-do-instrutor")
 tipos = {chave[1] for chave in ESTADO["zona"] if chave[0].startswith("_acme-")}
 checar("a rota nunca escreveu tipo diferente de TXT",
        tipos <= {"TXT"}, tipos)
+
+# ============================================================
+# 10. Certificado da turma (PUT e GET /certificado)
+#
+# A rota entrega CHAVE PRIVADA. O que a torna segura: o GET exige o
+# token de posse (nunca a senha da turma, que e publica), o PUT exige a
+# senha de instrutor, e o certificado vive em tabela propria para nao
+# sair pela listagem de registros.
+# ============================================================
+
+CERT_PEM = ("-----BEGIN CERTIFICATE-----\n"
+            "MIIBdummycertificadodeteste\n"
+            "-----END CERTIFICATE-----")
+CHAVE_PEM = ("-----BEGIN PRIVATE KEY-----\n"
+             "MIIEdummychavedeteste\n"
+             "-----END PRIVATE KEY-----")
+
+# Um aluno com token, que e quem tem direito ao certificado.
+chamar("POST", "/registros",
+       {"alias": "donocert", "endereco_ip": "6.6.6.6", "token": "tok-aluno"})
+# E um registro SEM dono, criado pela interface: nao deve autorizar.
+chamar("POST", "/registros", {"alias": "semdonocert", "endereco_ip": "6.6.6.7"})
+
+
+def cert(metodo, corpo=None, **kw):
+    return chamar(metodo, "/certificado", corpo, **kw)
+
+
+# --- antes de publicar ---
+
+r = cert("GET", token_header="tok-aluno")
+checar("GET /certificado sem nada publicado -> 404", r["statusCode"] == 404, r)
+
+# --- recusas do PUT ---
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM})
+checar("PUT sem x-admin-key -> 403", r["statusCode"] == 403, r)
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM}, admin="aluno")
+checar("PUT com a senha da TURMA -> 403", r["statusCode"] == 403, r)
+
+r = cert("PUT", {"cert": "nao sou pem", "key": CHAVE_PEM},
+         admin="senha-do-instrutor")
+checar("PUT com cert que nao e PEM -> 400", r["statusCode"] == 400, r)
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CERT_PEM}, admin="senha-do-instrutor")
+checar("PUT com 'key' que e um certificado -> 400", r["statusCode"] == 400, r)
+
+r = cert("PUT", {"cert": CERT_PEM}, admin="senha-do-instrutor")
+checar("PUT sem o campo key -> 400", r["statusCode"] == 400, r)
+
+checar("nenhuma recusa do PUT gravou nada", ESTADO["cert"] == {}, ESTADO["cert"])
+
+# --- PUT valido ---
+
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM,
+                 "expira_em": "2027-01-02T00:00:00"},
+         admin="senha-do-instrutor")
+checar("PUT valido -> 200", r["statusCode"] == 200, r)
+IMPRESSAO = json.loads(r["body"])["impressao"]
+checar("PUT devolve impressao", len(IMPRESSAO) == 16, r["body"])
+checar("PUT devolve a validade recebida",
+       json.loads(r["body"])["expira_em"] == "2027-01-02T00:00:00", r["body"])
+
+# --- recusas do GET ---
+
+r = cert("GET")
+checar("GET sem token -> 403", r["statusCode"] == 403, r)
+MSG_SEM_TOKEN = json.loads(r["body"])["erro"]
+
+r = cert("GET", token_header="token-de-ninguem")
+checar("GET com token errado -> 403", r["statusCode"] == 403, r)
+# Mensagem identica: a resposta nao deve revelar se um token existe.
+checar("403 nao distingue token ausente de token errado",
+       json.loads(r["body"])["erro"] == MSG_SEM_TOKEN, r["body"])
+
+# Registro sem dono nao da direito: o token_hash dele e vazio, e um
+# .get() que devolvesse None casando com hash de "" abriria a rota.
+r = cert("GET", token_header="")
+checar("GET com token vazio -> 403", r["statusCode"] == 403, r)
+
+# --- GET valido ---
+
+r = cert("GET", token_header="tok-aluno")
+checar("GET com token de aluno -> 200", r["statusCode"] == 200, r)
+corpo_cert = json.loads(r["body"])
+checar("GET devolve o cert", corpo_cert["cert"] == CERT_PEM, corpo_cert.keys())
+checar("GET devolve a chave no campo 'key'",
+       corpo_cert["key"] == CHAVE_PEM, list(corpo_cert.keys()))
+checar("GET devolve emitido_em e expira_em",
+       bool(corpo_cert["emitido_em"]) and bool(corpo_cert["expira_em"]), corpo_cert)
+
+# --- 304: o proxy.sh roda a cada subida de VM ---
+
+r = cert("GET", token_header="tok-aluno", params={"impressao": IMPRESSAO})
+checar("GET com a impressao atual -> 304", r["statusCode"] == 304, r)
+checar("304 nao traz corpo", r["body"] == "", repr(r["body"]))
+
+r = cert("GET", token_header="tok-aluno", params={"impressao": "desatualizada"})
+checar("GET com impressao antiga -> 200", r["statusCode"] == 200, r)
+
+# --- o motivo da tabela separada ---
+#
+# Este e o caso que justifica o bloco a mais no Terraform: na tabela de
+# registros, a chave privada sairia por aqui, autenticada apenas pela
+# senha publica da turma.
+corpo_lista = chamar("GET", "/registros")["body"]
+checar("a chave privada NAO aparece em GET /registros",
+       "PRIVATE KEY" not in corpo_lista)
+checar("o certificado NAO aparece em GET /registros",
+       "BEGIN CERTIFICATE" not in corpo_lista)
+checar("o certificado nao virou um registro na listagem",
+       "certificado" not in corpo_lista and "atual" not in
+       [i["alias"] for i in json.loads(corpo_lista)], corpo_lista[:200])
+
+# --- metodo errado ---
+
+r = cert("POST", {"cert": CERT_PEM, "key": CHAVE_PEM}, admin="senha-do-instrutor")
+checar("POST /certificado -> 404", r["statusCode"] == 404, r)
+
+# --- degradacao quando a tabela nao existe (conta sem o Terraform novo) ---
+
+_tabela_cert = g.tabela_cert
+g.tabela_cert = None
+r = cert("GET", token_header="tok-aluno")
+checar("sem tabela configurada -> 503, e nao 500", r["statusCode"] == 503, r)
+r = cert("PUT", {"cert": CERT_PEM, "key": CHAVE_PEM}, admin="senha-do-instrutor")
+checar("PUT sem tabela configurada -> 503", r["statusCode"] == 503, r)
+g.tabela_cert = _tabela_cert
 
 print()
 print("FALHAS:", FALHAS if FALHAS else "nenhuma")

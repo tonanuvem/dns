@@ -42,6 +42,15 @@ try:
     # Esta nunca sai da configuracao da Lambda; o instrutor a digita na
     # tela. Vazia (o padrao) desliga o override.
     SENHA_ADMIN = os.environ.get('SENHA_ADMIN', '')
+
+    # Tabela do certificado da turma. Opcional de proposito: com .get()
+    # em vez de [], este codigo sobe numa conta cujo Terraform ainda nao
+    # criou a tabela, e as rotas /certificado respondem 503 em vez de a
+    # Lambda inteira falhar na inicializacao e derrubar /registros com
+    # ela. Vale enquanto a rota for nova; quando toda turma estiver
+    # aplicada, pode virar obrigatoria.
+    NOME_TABELA_CERT = os.environ.get('DYNAMODB_TABLE_CERT', '')
+    tabela_cert = dynamodb.Table(NOME_TABELA_CERT) if NOME_TABELA_CERT else None
 except Exception as e:
     print(f"ERRO na inicializacao: {e}")
     raise
@@ -463,6 +472,146 @@ def _atualizar_txt(nome, transformar, tentativas=3):
             print(f"_atualizar_txt: {nome} mudou no meio, relendo")
 
 
+# ============================================================
+# CERTIFICADO DA TURMA
+#
+# O painel do labproxy roda HTTPS no nome de cada aluno, e o
+# certificado e um curinga unico da turma (*.<turma>.<dominio>), emitido
+# uma vez a cada 90 dias. Esta rota o guarda e o distribui, para a VM do
+# aluno nao precisar de credencial AWS nem de cliente ACME.
+#
+#   PUT /certificado   x-admin-key                 -> o instrutor sobe
+#   GET /certificado   x-api-key + x-dns-token     -> a VM busca
+#
+# O GET autentica pelo TOKEN DE POSSE, nunca pela senha da turma: a
+# senha esta no bundle do frontend e embutida no dns.sh, entao serviria
+# a chave privada a qualquer um. O token prova que quem pede e dono de
+# algum nome da zona -- a mesma prova do _dono_confere, sem exigir um
+# alias especifico.
+#
+# A chave e guardada no campo "chave" e so vira "key" na resposta, que
+# e o contrato do cliente do labproxy. A assimetria e de proposito: um
+# dump da tabela nao tem o mesmo nome de campo que o payload publico,
+# o que estorva uma copia descuidada de um lado para o outro.
+# ============================================================
+
+# Guardado num item unico, com a turma como chave.
+CHAVE_CERT = 'atual'
+
+INICIO_CERT = '-----BEGIN CERTIFICATE-----'
+INICIO_CHAVE = '-----BEGIN'  # RSA PRIVATE KEY, PRIVATE KEY, EC PRIVATE KEY...
+
+
+def _token_conhecido(token):
+    """True quando o token bate com o de ALGUM registro da zona.
+
+    Sem alias: o aluno pede o certificado da turma, nao um registro.
+    Varre a tabela projetando so o token_hash -- a turma tem dezenas de
+    itens, nao milhares, e isto roda uma vez por subida de VM.
+    """
+    if not token:
+        return False
+
+    alvo = _hash_token(token)
+    kwargs = {'ProjectionExpression': 'token_hash'}
+
+    while True:
+        resposta = table.scan(**kwargs)
+
+        for item in resposta.get('Items', []):
+            guardado = item.get('token_hash')
+            if guardado and hmac.compare_digest(guardado, alvo):
+                return True
+
+        if 'LastEvaluatedKey' not in resposta:
+            return False
+
+        kwargs['ExclusiveStartKey'] = resposta['LastEvaluatedKey']
+
+
+def guardar_certificado(dados):
+    """PUT /certificado -- so o instrutor."""
+    if tabela_cert is None:
+        return _erro(503, 'Armazenamento do certificado nao configurado nesta conta')
+
+    cert = dados.get('cert')
+    chave = dados.get('key')
+
+    if not isinstance(cert, str) or not isinstance(chave, str):
+        return _erro(400, 'Os campos cert e key sao obrigatorios')
+
+    cert = cert.strip()
+    chave = chave.strip()
+
+    if INICIO_CERT not in cert:
+        return _erro(400, 'O campo cert nao parece um certificado PEM')
+
+    if INICIO_CHAVE not in chave or 'PRIVATE KEY' not in chave:
+        return _erro(400, 'O campo key nao parece uma chave privada PEM')
+
+    # Identifica a versao sem precisar ler o certificado: o cliente
+    # manda de volta e a gente responde 304 se nao mudou.
+    impressao = hashlib.sha256(cert.encode()).hexdigest()[:16]
+
+    item = {
+        'turma': CHAVE_CERT,
+        'cert': cert,
+        'chave': chave,
+        'emitido_em': datetime.now().isoformat(),
+        'impressao': impressao
+    }
+
+    # A validade vem de quem emitiu: ler o X.509 exigiria dependencia
+    # fora da stdlib, e o emitir-cert.sh ja tem o openssl na mao.
+    expira_em = dados.get('expira_em')
+    if isinstance(expira_em, str) and expira_em.strip():
+        item['expira_em'] = expira_em.strip()
+
+    tabela_cert.put_item(Item=item)
+
+    print(f"guardar_certificado: impressao {impressao}")
+
+    return _resposta(200, {
+        'impressao': impressao,
+        'emitido_em': item['emitido_em'],
+        'expira_em': item.get('expira_em', '')
+    })
+
+
+def obter_certificado(token, params):
+    """GET /certificado -- autenticado pelo token de posse do aluno."""
+    if tabela_cert is None:
+        return _erro(503, 'Armazenamento do certificado nao configurado nesta conta')
+
+    # Mensagem unica: nao distingue "token ausente" de "token nao bate",
+    # para a resposta nao dizer se um token existe na zona.
+    if not _token_conhecido(token):
+        return _erro(403, 'Token de posse invalido')
+
+    item = tabela_cert.get_item(Key={'turma': CHAVE_CERT}).get('Item')
+
+    if not item:
+        return _erro(404, 'Nenhum certificado publicado para esta turma')
+
+    impressao = item.get('impressao', '')
+
+    # 304: o proxy.sh roda a cada subida de VM e sem isto rebaixaria o
+    # certificado do disco por nada.
+    if impressao and params.get('impressao') == impressao:
+        print("obter_certificado: 304, cliente ja tem esta versao")
+        return _resposta(304, None)
+
+    print(f"obter_certificado: entregue, impressao {impressao}")
+
+    return _resposta(200, {
+        'cert': item.get('cert', ''),
+        'key': item.get('chave', ''),
+        'emitido_em': item.get('emitido_em', ''),
+        'expira_em': item.get('expira_em', ''),
+        'impressao': impressao
+    })
+
+
 def lambda_handler(event, context):
     metodo = event.get('httpMethod', '')
     path = _normalizar_path(event)
@@ -506,6 +655,27 @@ def lambda_handler(event, context):
                 return acme_present(corpo)
             if metodo == 'POST' and partes[1:] == ['cleanup']:
                 return acme_cleanup(corpo)
+
+        if partes == ['certificado']:
+            corpo = json.loads(event.get('body') or '{}')
+            params = event.get('queryStringParameters') or {}
+
+            # Excecao contida AQUI, e nao no except geral: aquele loga
+            # str(e), e a mensagem de um erro do DynamoDB pode carregar
+            # pedaco do item -- que neste caminho inclui a chave
+            # privada. Daqui so o TIPO da excecao chega ao CloudWatch.
+            try:
+                if metodo == 'PUT':
+                    if not _eh_admin(headers):
+                        return _erro(403, 'Esta rota exige a senha de instrutor (x-admin-key)')
+                    return guardar_certificado(corpo)
+
+                if metodo == 'GET':
+                    return obter_certificado(_extrair_token(headers, corpo), params)
+
+            except Exception as e:
+                print(f"ERRO em {metodo} /certificado: {type(e).__name__}")
+                return _erro(500, 'Erro ao processar o certificado')
 
         if partes and partes[0] == 'registros':
             subdominio = partes[1] if len(partes) > 1 else None
