@@ -149,6 +149,32 @@ if [ -n "$ZONA_ID" ]; then
 fi
 
 # ============================================================
+# CERTIFICADO DA TURMA
+#
+# Em --auto o script decide sozinho: le a validade do que esta guardado e
+# so emite se nao houver certificado ou se faltarem menos de 30 dias. Isso e
+# o que permite chama-lo daqui -- a Let's Encrypt limita 5 certificados por
+# conjunto identico de nomes a cada 7 dias, e o deploy.sh e rodado varias
+# vezes por tarde durante desenvolvimento. Sem a guarda, a turma queimaria a
+# cota da semana e ficaria dias sem conseguir emitir.
+#
+# Emite em PRODUCAO: um certificado de staging guardado seria pior que
+# nenhum, porque o painel passaria a parecer configurado e o navegador
+# continuaria recusando. Para ensaiar o fluxo sem gastar cota, rode o script
+# a mao sem --producao.
+#
+# Nao e verificado com check_status de proposito: certificado e um passo
+# adicional, e uma falha dele (sem docker, lego fora do ar, rota /acme ainda
+# nao implantada) nao deve derrubar um deploy que ja aplicou tudo.
+#
+# DNS_CERT_AUTO=0 desliga.
+# ============================================================
+
+if [ "${DNS_CERT_AUTO:-1}" = "1" ]; then
+    "$BASE_DIR/scripts/emitir_certificado.sh" --auto --producao || true
+fi
+
+# ============================================================
 # RESULTADO
 #
 # As URLs saem dos outputs, nao de texto fixo: o hostname do frontend
